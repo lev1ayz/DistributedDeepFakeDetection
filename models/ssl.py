@@ -1,4 +1,6 @@
 from argparse import Namespace, ArgumentParser
+import sys
+sys.path.insert(0, '/srv/DeepFakeDetection/andrew_atonov_simclr_pytorch/simclr-pytorch/')
 
 import os
 import torch
@@ -18,6 +20,9 @@ import scipy
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 
+from dfd_utils.FaceForensicsDataset import FaceForensicsDataset
+from torch.utils.data import Subset
+
 import copy
 
 class BaseSSL(nn.Module):
@@ -27,6 +32,7 @@ class BaseSSL(nn.Module):
     """
     DATA_ROOT = os.environ.get('DATA_ROOT', os.path.dirname(os.path.abspath(__file__)) + '/data')
     IMAGENET_PATH = os.environ.get('IMAGENET_PATH', '/home/aashukha/imagenet/raw-data/')
+    FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
 
     def __init__(self, hparams):
         super().__init__()
@@ -79,6 +85,20 @@ class BaseSSL(nn.Module):
             valdir = os.path.join(self.IMAGENET_PATH, 'val')
             self.trainset = datasets.ImageFolder(traindir, transform=train_transform)
             self.testset = datasets.ImageFolder(valdir, transform=test_transform)
+        # TODO add FaceForensics
+        elif self.hparams.data == 'faceforensics':
+            print('importing FF')
+            traindir = os.path.join(self.FF_PATH ,'train')
+            print('FF train dir:', traindir)
+            testdir = os.path.join(self.FF_PATH, 'test')
+            print('FF test dir:', testdir)
+            ff_ds_train = FaceForensicsDataset(traindir, transform=None, load_deepfakes=False, load_face2face=False)
+            ff_ds_test =  FaceForensicsDataset(testdir, transform=None, load_deepfakes=False, load_face2face=False)
+            train_subset = Subset(ff_ds_train, list(range(0, 10000)))
+            test_subset = Subset(ff_ds_test, list(range(0, 2000)))
+            self.trainset = train_subset
+            self.testset = test_subset
+
         else:
             raise NotImplementedError
 
@@ -249,7 +269,7 @@ class SimCLR(BaseSSL):
             ])
             test_transform = train_transform
 
-        elif self.hparams.data == 'imagenet':
+        elif self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics':
             from utils.datautils import GaussianBlur
 
             im_size = 224
@@ -266,6 +286,7 @@ class SimCLR(BaseSSL):
                 datautils.Clip(),
             ])
             test_transform = train_transform
+        # TODO add FaceForensics (looks like it should be the same as imagenet)
         return train_transform, test_transform
 
     def get_ckpt(self):
@@ -480,6 +501,7 @@ class SSLEval(BaseSSL):
                 transforms.ToTensor(),
                 lambda x: (255 * x).byte(),
             ])
+        # TODO add FaceForensics
         return train_transform if self.hparams.aug else test_transform, test_transform
 
     def train(self, mode=True):
