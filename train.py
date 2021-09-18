@@ -13,6 +13,9 @@ import torch.multiprocessing as mp
 import torch.distributed as dist
 import socket
 
+from tqdm import tqdm
+from matplotlib import pyplot as plt
+
 
 def add_learner_params(parser):
     parser.add_argument('--problem', default='sim-clr',
@@ -161,10 +164,49 @@ def main_worker(gpu, ngpus, args):
         model.train()
 
         start_time = time.time()
-        for _, batch in enumerate(train_loader):
+        for batch in tqdm(train_loader):
             cur_iter += 1
-
+            #print('train.py batch len:', len(batch))
             batch = [x.to(device) for x in batch]
+            # Plot images for testing
+            """
+            print('plotting a test pic in train.py')
+            x, y, labels = batch
+            print('labels:', labels)
+            num_images = len(x) * 2
+            assert len(x) == len(y), "images not same size?"
+            print('num images:', num_images)
+            fig, axs = plt.subplots(nrows=4, ncols=int(num_images/4))
+            for i in range(0,num_images,2):
+                img1 = x[int(i/2)]
+                img1 = img1.cpu()
+                img2 = y[int(i/2)]
+                img2 = img2.cpu()
+                #print('img shape:', img.shape)
+                if(img1.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
+                    img1 = torch.movedim(img1, 0, -1)
+                if(img2.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
+                    img2 = torch.movedim(img2, 0, -1)
+                row = int(i/(num_images/4))
+                col = int(i%(num_images/4))
+                print('row:', row, ' col:', col)
+                axs[row,col].imshow(img1)
+                #axs[row, col+1].imshow(img2)
+                #axs[row,col].title.set_text(labels[0][i])
+            plt.show()
+            plt.close('all')
+            """
+            # For FaceForensics, take both augmetations and merge them into 1 list
+            if args.data == 'faceforensics':
+                #batch = [batch[0] + batch[1], batch[2]]
+                """
+                I don't know why batch[1] is also twice the specified batch size,
+                I assume somewhere the code takes every item returned by the datasets __getitem()__
+                augemnts it and then does another augmentation and adds it to the batch so that every positive
+                example is at location i+original_batch_size where i is the current example so i discard batch[1].
+                """
+                batch = [batch[0], batch[2]]
+
             data_time += time.time() - start_time
 
             logs = {}
@@ -177,20 +219,23 @@ def main_worker(gpu, ngpus, args):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-
             # save logs for the batch
             train_logs.append({k: utils.tonp(v) for k, v in logs.items()})
 
             if cur_iter % args.save_freq == 0 and args.rank == 0:
+                print('saving')
                 save_checkpoint(args.root, model, optimizer, cur_iter)
-
+            
             if cur_iter % args.eval_freq == 0 or cur_iter >= args.iters:
                 # TODO: aggregate metrics over all processes
+                print('aggregating metrics and evaluating')
                 test_logs = []
                 model.eval()
                 with torch.no_grad():
                     for batch in val_loader:
                         batch = [x.to(device) for x in batch]
+                        if args.data == 'faceforensics':
+                            batch = [batch[0], batch[2]]
                         # forward pass
                         logs = model.test_step(batch)
                         # save logs for the batch
@@ -199,10 +244,10 @@ def main_worker(gpu, ngpus, args):
 
                 test_logs = utils.agg_all_metrics(test_logs)
                 logger.add_logs(cur_iter, test_logs, pref='test_')
-
             it_time += time.time() - start_time
 
             if (cur_iter % args.log_freq == 0 or cur_iter >= args.iters) and args.rank == 0:
+                #print('saving again?')
                 save_checkpoint(args.root, model, optimizer)
                 train_logs = utils.agg_all_metrics(train_logs)
 
