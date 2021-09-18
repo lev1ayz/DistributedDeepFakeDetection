@@ -22,6 +22,7 @@ import torch.distributed as dist
 
 from dfd_utils.FaceForensicsDataset import FaceForensicsDataset
 from torch.utils.data import Subset
+from matplotlib import pyplot as plt
 
 import copy
 
@@ -68,12 +69,14 @@ class BaseSSL(nn.Module):
         pass
 
     def transforms(self):
+        print('transforms called and passed')
         pass
 
     def samplers(self):
         return None, None
 
     def prepare_data(self):
+        print('preparing data')
         train_transform, test_transform = self.transforms()
         # print('The following train transform is used:\n', train_transform)
         # print('The following test transform is used:\n', test_transform)
@@ -92,13 +95,30 @@ class BaseSSL(nn.Module):
             print('FF train dir:', traindir)
             testdir = os.path.join(self.FF_PATH, 'test')
             print('FF test dir:', testdir)
-            ff_ds_train = FaceForensicsDataset(traindir, transform=None, load_deepfakes=False, load_face2face=False)
-            ff_ds_test =  FaceForensicsDataset(testdir, transform=None, load_deepfakes=False, load_face2face=False)
+            ff_ds_train = FaceForensicsDataset(traindir, transform=train_transform, load_deepfakes=False, load_face2face=False)
+            ff_ds_test =  FaceForensicsDataset(testdir, transform=test_transform, load_deepfakes=False, load_face2face=False)
             train_subset = Subset(ff_ds_train, list(range(0, 10000)))
             test_subset = Subset(ff_ds_test, list(range(0, 2000)))
-            self.trainset = train_subset
-            self.testset = test_subset
-
+            self.trainset = ff_ds_train
+            self.testset = ff_ds_test
+            """
+            print('plotting images directly from ff ds')
+            num_images = 32
+            print('num images:', num_images)
+            fig, axs = plt.subplots(nrows=4, ncols=8, sharex=True)
+            for i in range(num_images):
+                img, _, _ = ff_ds_train[i]
+                img = img.cpu()
+                print('img shape:', img.shape)
+                if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
+                    img = torch.movedim(img, 0, -1)
+                row = int(i/8)
+                col = i%8
+                axs[row,col].imshow(img)
+            plt.show()
+            plt.close('all')
+            """
+        
         else:
             raise NotImplementedError
 
@@ -203,8 +223,30 @@ class SimCLR(BaseSSL):
                 linear_normal_init(m.weight)
 
     def step(self, batch):
+        #print('ssl.py batch len:', len(batch))
+        #print('ssl.py batch0 shape:', batch[0].shape)
+        #print('ssl.py batch1 shape:', batch[1].shape)
         x, _ = batch
+        # visualize the pictures
+        """
+        print('plotting a test pic in ssl.py')
+        num_images = len(x)
+        print('num images:', num_images)
+        fig, axs = plt.subplots(nrows=4, ncols=int(num_images/4))
+        for i in range(num_images):
+            img = x[i]
+            img = img.cpu()
+            #print('img shape:', img.shape)
+            if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
+                img = torch.movedim(img, 0, -1)
+            row = int(i/8)
+            col = i%8
+            axs[row,col].imshow(img)
+        plt.show()
+        plt.close('all')
+        """
         z = self.model(x)
+        #print('z shape:', z.shape)
         loss, acc = self.criterion(z)
         return {
             'loss': loss,
@@ -255,6 +297,7 @@ class SimCLR(BaseSSL):
         )
 
     def transforms(self):
+        print('transforms for SIMCLR')
         if self.hparams.data == 'cifar':
             train_transform = transforms.Compose([
                 transforms.RandomResizedCrop(
@@ -271,7 +314,7 @@ class SimCLR(BaseSSL):
 
         elif self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics':
             from utils.datautils import GaussianBlur
-
+            print('prepering transforms for faceforensics (or imgnet)')
             im_size = 224
             train_transform = transforms.Compose([
                 transforms.RandomResizedCrop(
@@ -286,7 +329,13 @@ class SimCLR(BaseSSL):
                 datautils.Clip(),
             ])
             test_transform = train_transform
-        # TODO add FaceForensics (looks like it should be the same as imagenet)
+        # TODO add FaceForensics (looks like it should be the same as imagenet or none since the dataclass provides the transforms)
+        """
+        elif self.hparams.data == 'faceforensics':
+            print('transforms are None')
+            train_transform = None
+            test_transform = None
+        """
         return train_transform, test_transform
 
     def get_ckpt(self):
@@ -400,6 +449,7 @@ class SSLEval(BaseSSL):
         super().prepare_data()
 
         def create_emb_dataset(dataset):
+            print('create_emb_dataset')
             embs, labels = [], []
             loader = torch.utils.data.DataLoader(
                 dataset,
@@ -409,7 +459,7 @@ class SSLEval(BaseSSL):
                 shuffle=False,
             )
             for x, y in tqdm(loader):
-                if self.hparams.data == 'imagenet':
+                if self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics':
                     x = x.to(torch.device('cuda'))
                     x = x / 255.
                 e = self.encode(x)
@@ -462,6 +512,7 @@ class SSLEval(BaseSSL):
         return train_loader, test_loader
 
     def transforms(self):
+        print('calling transforms from SSLeval class')
         if self.hparams.data == 'cifar':
             trs = []
             if 'RandomResizedCrop' in self.hparams.augmentation:
@@ -485,7 +536,7 @@ class SSLEval(BaseSSL):
             test_transform = transforms.Compose([
                 transforms.ToTensor(),
             ])
-        elif self.hparams.data == 'imagenet':
+        elif self.hparams.data == 'imagenet' or self.hparams.data == ' faceforensics':
             train_transform = transforms.Compose([
                 transforms.RandomResizedCrop(
                     224,
@@ -501,7 +552,11 @@ class SSLEval(BaseSSL):
                 transforms.ToTensor(),
                 lambda x: (255 * x).byte(),
             ])
-        # TODO add FaceForensics
+        # TODO add FaceForensics? since it takes care of the transform itself
+        # elif self.hparams.data == 'faceforensics':
+        #     train_transform = None
+        #     test_transform = None
+
         return train_transform if self.hparams.aug else test_transform, test_transform
 
     def train(self, mode=True):
