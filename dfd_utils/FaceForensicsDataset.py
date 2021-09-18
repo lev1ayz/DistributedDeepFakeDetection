@@ -1,3 +1,4 @@
+#from _typeshed import NoneType
 import importlib
 from torch.functional import Tensor
 from torchvision import transforms
@@ -147,8 +148,10 @@ class FaceForensicsDataset(Dataset):
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # maybe dont to save loading time
         mask = cv2.imread(mask_path, 0)
+        if mask is None:
+            print('mask path:', mask_path)
 
-        if all(item == False for item in mask.any(1)) == True:
+        if mask is None or all(item == False for item in mask.any(1)) == True:
             print('invalid mask')
             path_to_imgs = os.path.dirname(img_path)
             path_to_masks = os.path.dirname(os.path.dirname(mask_path)) # avoid creating a subfolder within mask folder
@@ -156,7 +159,7 @@ class FaceForensicsDataset(Dataset):
             GenerateFaceMasks(path_to_imgs, masks_root_path=path_to_masks, overwrite=True)
             mask = cv2.imread(mask_path, 0)
 
-        if all(item == False for item in mask.any(1)) == True or all(item == False for item in mask.any(0)) == True:
+        if mask is None or all(item == False for item in mask.any(1)) == True or all(item == False for item in mask.any(0)) == True:
             # if even after remasking, theres no mask, use whole picture
             pass
         else:
