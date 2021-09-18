@@ -191,8 +191,8 @@ def main_worker(gpu, ngpus, args):
                 col = int(i%(num_images/4))
                 print('row:', row, ' col:', col)
                 axs[row,col].imshow(img1)
-                #axs[row, col+1].imshow(img2)
-                #axs[row,col].title.set_text(labels[0][i])
+                axs[row, col+1].imshow(img2)
+                axs[row,col].title.set_text(labels[0][i])
             plt.show()
             plt.close('all')
             """
