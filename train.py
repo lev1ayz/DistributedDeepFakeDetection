@@ -43,6 +43,7 @@ def add_learner_params(parser):
     parser.add_argument('-j', '--workers', default=4, type=int, help='The number of data loader workers')
     parser.add_argument('--eval_only', default=False, type=bool, help='Skips the training step if True')
     parser.add_argument('--seed', default=-1, type=int, help='Random seed')
+    parser.add_argument('--root', default='/mnt/results', type=str, help='Root')
     # parallelizm params:
     parser.add_argument('--dist', default='dp', type=str,
         help='dp: DataParallel, ddp: DistributedDataParallel',
@@ -191,8 +192,8 @@ def main_worker(gpu, ngpus, args):
                 col = int(i%(num_images/4))
                 print('row:', row, ' col:', col)
                 axs[row,col].imshow(img1)
-                axs[row, col+1].imshow(img2)
-                axs[row,col].title.set_text(labels[0][i])
+                #axs[row, col+1].imshow(img2)
+                #axs[row,col].title.set_text(labels[0][i])
             plt.show()
             plt.close('all')
             """
@@ -248,7 +249,7 @@ def main_worker(gpu, ngpus, args):
 
             if (cur_iter % args.log_freq == 0 or cur_iter >= args.iters) and args.rank == 0:
                 #print('saving again?')
-                save_checkpoint(args.root, model, optimizer)
+                #save_checkpoint(args.root, model, optimizer,cur_iter)
                 train_logs = utils.agg_all_metrics(train_logs)
 
                 logger.add_logs(cur_iter, train_logs, pref='train_')
@@ -270,7 +271,7 @@ def main_worker(gpu, ngpus, args):
 
             start_time = time.time()
 
-    save_checkpoint(args.root, model, optimizer)
+    save_checkpoint(args.root, model, optimizer,cur_iter)
 
     if args.dist == 'ddp':
         dist.destroy_process_group()
