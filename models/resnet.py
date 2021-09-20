@@ -31,7 +31,6 @@ class ResNetEncoder(models.resnet.ResNet):
             self.bn1 = self._norm_layer(64)
             self.relu = nn.ReLU(inplace=True)
         self.hparams = hparams
-
         print('** Using avgpool **')
 
     def forward(self, x):

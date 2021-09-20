@@ -95,12 +95,21 @@ class BaseSSL(nn.Module):
             print('FF train dir:', traindir)
             testdir = os.path.join(self.FF_PATH, 'test')
             print('FF test dir:', testdir)
-            ff_ds_train = FaceForensicsDataset(traindir, transform=train_transform, load_deepfakes=False, load_face2face=False)
-            ff_ds_test =  FaceForensicsDataset(testdir, transform=test_transform, load_deepfakes=False, load_face2face=False)
-            train_subset = Subset(ff_ds_train, list(range(0, 10000)))
-            test_subset = Subset(ff_ds_test, list(range(0, 2000)))
-            self.trainset = ff_ds_train
-            self.testset = ff_ds_test
+            ff_ds_train = FaceForensicsDataset(traindir, transform=train_transform,
+                                               load_deepfakes=self.hparams.deepfakes, load_face2face=False)
+            ff_ds_test = FaceForensicsDataset(testdir, transform=test_transform,
+                                              load_deepfakes=self.hparams.deepfakes, load_face2face=False)
+            train_size = int(0.8 * len(ff_ds_train))
+            tr_size = len(ff_ds_train) - train_size
+            test_size = int(0.8 * len(ff_ds_test))
+            ts_size = len(ff_ds_test) - test_size
+            train_dataset, _ = torch.utils.data.random_split(ff_ds_train, [train_size, tr_size])
+            test_dataset, _ = torch.utils.data.random_split(ff_ds_test, [test_size, ts_size])
+            train_subset = Subset(train_dataset, list(range(0, 20000)))
+            test_subset = Subset(test_dataset, list(range(0, 4000)))
+
+            self.trainset = train_subset
+            self.testset = test_subset
             """
             print('plotting images directly from ff ds')
             num_images = 32
@@ -178,7 +187,7 @@ class SimCLR(BaseSSL):
 
     def __init__(self, hparams, device=None):
         super().__init__(hparams)
-
+        print(hparams.dist)
         self.hparams.dist = getattr(self.hparams, 'dist', 'dp')
 
         model = models.encoder.EncodeProject(hparams)
@@ -376,7 +385,6 @@ class SSLEval(BaseSSL):
                 ckpt['hparams'].dist = 'dp'
             if self.hparams.dist == 'ddp':
                 ckpt['hparams'].dist = 'gpu:%d' % hparams.gpu
-
             self.encoder = models.REGISTERED_MODELS[ckpt['hparams'].problem].load(ckpt, device=device)
         else:
             print('===> Random encoder is used!!!')
@@ -396,6 +404,9 @@ class SSLEval(BaseSSL):
         elif hparams.data == 'imagenet':
             hdim = self.encode(torch.ones(10, 3, 224, 224).to(device)).shape[1]
             n_classes = 1000
+        elif hparams.data == 'faceforensics':
+            hdim = self.encode(torch.ones(10, 3, 224, 224).to(device)).shape[1]
+            n_classes = 2
 
         if hparams.arch == 'linear':
             model = nn.Linear(hdim, n_classes).to(device)
@@ -409,7 +420,7 @@ class SSLEval(BaseSSL):
             self.model = DDP(model, [hparams.gpu])
 
     def encode(self, x):
-        return self.encoder.model(x, out='h')
+        return self.encoder.model(x.float(), out='h')
 
     def step(self, batch):
         if self.hparams.problem == 'eval' and self.hparams.data == 'imagenet':
@@ -418,7 +429,7 @@ class SSLEval(BaseSSL):
         if self.hparams.precompute_emb_bs == -1:
             h = self.encode(h)
         p = self.model(h)
-        loss = F.cross_entropy(p, y)
+        loss = F.cross_entropy(p, y.long())
         acc = (p.argmax(1) == y).float()
         return {
             'loss': loss,
@@ -536,7 +547,7 @@ class SSLEval(BaseSSL):
             test_transform = transforms.Compose([
                 transforms.ToTensor(),
             ])
-        elif self.hparams.data == 'imagenet' or self.hparams.data == ' faceforensics':
+        elif self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics':
             train_transform = transforms.Compose([
                 transforms.RandomResizedCrop(
                     224,

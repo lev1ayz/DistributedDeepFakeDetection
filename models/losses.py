@@ -50,6 +50,7 @@ class NTXent(nn.Module):
         self.norm = 1.
 
     def forward(self, z, get_map=False):
+        #print('ntxnet loss z shape:',z.shape)
         n = z.shape[0]
         assert n % self.multiplier == 0
 

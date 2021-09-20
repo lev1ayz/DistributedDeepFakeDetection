@@ -44,6 +44,7 @@ def add_learner_params(parser):
     parser.add_argument('--eval_only', default=False, type=bool, help='Skips the training step if True')
     parser.add_argument('--seed', default=-1, type=int, help='Random seed')
     parser.add_argument('--root', default='/mnt/results', type=str, help='Root')
+    parser.add_argument('--deepfakes', default=False, type=bool, help='load deepfakes')
     # parallelizm params:
     parser.add_argument('--dist', default='dp', type=str,
         help='dp: DataParallel, ddp: DistributedDataParallel',
@@ -75,8 +76,10 @@ def main():
 
     if is_help:
         sys.argv.append('--help')
-
+    print('args:', args)
     args = parser.parse_args(namespace=args)
+    print('args:', args)
+
 
     if args.data == 'imagenet' and args.aug == False:
         raise Exception('ImageNet models should be eval with aug=True!')
