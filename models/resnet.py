@@ -30,6 +30,8 @@ class ResNetEncoder(models.resnet.ResNet):
             self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
             self.bn1 = self._norm_layer(64)
             self.relu = nn.ReLU(inplace=True)
+        self.fc = None
+        print('** Removing original FC layer **')
         self.hparams = hparams
         print('** Using avgpool **')
 
