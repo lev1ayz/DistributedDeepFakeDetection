@@ -12,7 +12,7 @@ import cv2
 from dfd_utils import ImageAugmentation
 importlib.reload(ImageAugmentation)
 from dfd_utils.ImageAugmentation import get_transforms
-from dfd_utils.utils import GenerateFaceMasks
+from dfd_utils.utils import GenerateFaceMasks, Blackout
 
 from PIL import Image
 
@@ -132,6 +132,8 @@ class FaceForensicsDataset(Dataset):
         
         print('asserting order')
         self.assert_order(self.img_paths, self.mask_paths)
+
+        self.blackout = Blackout()
         
 
         
@@ -166,19 +168,24 @@ class FaceForensicsDataset(Dataset):
             #img = cv2.bitwise_and(img, img, mask = mask)
             img = img[np.ix_(mask.any(1), mask.any(0))]
 
+        # Blackout eyes and mouth
+        img = self.blackout.blackout_eyes_mouth(img)
+
         img_width, img_height, _ = img.shape
         
         if self.transform is None:
             self.transform = get_transforms(img_width, img_height, CROPPED_SIZE)
 
-        if not (isinstance(img, type(torch.TensorType)) or isinstance(img, type(Image))):
+        if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
             #print(img.shape)
             #print(img_path)
-            img = transforms.ToPILImage()(img)
+            #img = transforms.ToPILImage()(img)
+            #img = transforms.ToTensor()(img)
+            pass
         
-        img1 = self.transform(img)
-        img2 = self.transform(img)
-        #img1 = img2 = img
+        #img1 = self.transform(img)
+        #img2 = self.transform(img)
+        img1 = img2 = img
         
         # img1 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)
         # img2 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)

@@ -5,6 +5,8 @@ from PIL import Image
 import os
 import sys
 import subprocess
+import dlib
+from imutils import face_utils
 import matplotlib.pyplot as plt
 from dfd_utils.resnet import get_resnet, name_to_params, StemCIFAR
 
@@ -189,3 +191,39 @@ def GenerateFaceMasks(path_to_imgs, masks_root_path=None, overwrite=False):
             i+=1
     
     return imgs_wo_mask
+
+
+class Blackout():
+    def __init__(self, path_to_shape_predictor='/srv/DeepFakeDetection/andrew_atonov_simclr_pytorch/simclr-pytorch/dfd_utils/shape_predictor_68_face_landmarks.dat') -> None:
+        self.detector = dlib.get_frontal_face_detector()
+        self.predictor = dlib.shape_predictor(path_to_shape_predictor)
+
+    """
+    Receives an image of a face
+    Returns image of a face with eyes and mouth blacked out
+    If no face is found, return original image
+    """
+    def blackout_eyes_mouth(self, img):
+        face = self.detector(img)
+        if len(face) == 0:
+            print('couldnt detect face')
+            # TODO add some kind of exception
+            return img
+            
+        face = face[0] # There should only be a single face in an image
+        shape  = self.predictor(image=img, box=face)
+        shape = face_utils.shape_to_np(shape)
+
+        mouth = shape[range(48,68)]
+        r_eye = shape[range(36,42)]
+        l_eye = shape[range(42,48)]
+
+        face_parts = [mouth, r_eye, l_eye]
+
+        for part in face_parts:
+            cv2.fillPoly(img, pts=np.int32([np.array(part)]), color=(0,0,0))
+        
+        return img
+
+        
+        
