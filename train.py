@@ -45,6 +45,7 @@ def add_learner_params(parser):
     parser.add_argument('--seed', default=-1, type=int, help='Random seed')
     parser.add_argument('--root', default='/mnt/results', type=str, help='Root')
     parser.add_argument('--deepfakes', default=False, type=bool, help='load deepfakes')
+    parser.add_argument('--pretrained', default=False, type=bool, help='load resnet with torchvision pretrained weights')
     # parallelizm params:
     parser.add_argument('--dist', default='dp', type=str,
         help='dp: DataParallel, ddp: DistributedDataParallel',

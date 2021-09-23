@@ -192,6 +192,32 @@ class FaceForensicsDataset(Dataset):
         # img2 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)
                 
         return img1, img2, self.targets[idx]
+
+
+    """
+    Removes extra paths from self.images and self.masks so that theres an equal amount of real and fakes
+    This function takes advantage of the fact the the 1st half of self.imgs are real images and the 2nd part are fake images
+    """
+    def equalize_real_fakes(self):
+        real_len = len(self.real_img_paths)
+        fake_len = len(self.fake_img_paths)
+        print('before eq: real:', real_len, ' fake:', fake_len, ' total:', len(self.img_paths))
+
+        diff = fake_len - real_len
+        # if diff is > 0 then cutout part from real_len->real_len+diff
+        # else cutout from real_len ->real_len+diff (becuase diff < 0  it will cut into the real images)
+        if diff > 0:
+            del self.img_paths[real_len:real_len+diff]
+            del self.mask_paths[real_len:real_len+diff]
+            del self.targets[real_len:real_len+diff]
+        else:
+            del self.img_paths[real_len-diff:real_len]
+            del self.mask_paths[real_len-diff:real_len]
+            del self.targets[real_len-diff:real_len]
+
+        print('after eq:', 'total:', len(self.img_paths))
+
+        return
     
     """
     each mask should have an img and i assume initially the list should be somewhat ordered

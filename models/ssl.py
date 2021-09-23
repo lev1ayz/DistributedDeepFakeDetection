@@ -95,28 +95,32 @@ class BaseSSL(nn.Module):
             print('FF train dir:', traindir)
             testdir = os.path.join(self.FF_PATH, 'test')
             print('FF test dir:', testdir)
-            ff_ds_train = FaceForensicsDataset(traindir, transform=train_transform,
+            ff_ds_train = FaceForensicsDataset(traindir, transform=None,
                                                load_deepfakes=self.hparams.deepfakes, load_face2face=False)
-            ff_ds_test = FaceForensicsDataset(testdir, transform=test_transform,
+            ff_ds_test = FaceForensicsDataset(testdir, transform=None,
                                               load_deepfakes=self.hparams.deepfakes, load_face2face=False)
+            if self.hparams.deepfakes:
+                ff_ds_train.equalize_real_fakes
+                ff_ds_test.equalize_real_fakes
+                
             train_size = int(0.8 * len(ff_ds_train))
             tr_size = len(ff_ds_train) - train_size
             test_size = int(0.8 * len(ff_ds_test))
             ts_size = len(ff_ds_test) - test_size
-            train_dataset, _ = torch.utils.data.random_split(ff_ds_train, [train_size, tr_size])
-            test_dataset, _ = torch.utils.data.random_split(ff_ds_test, [test_size, ts_size])
+            train_dataset, _ = torch.utils.data.random_split(ff_ds_train, [train_size, tr_size], generator=torch.Generator().manual_seed(42))
+            test_dataset, _ = torch.utils.data.random_split(ff_ds_test, [test_size, ts_size], generator=torch.Generator().manual_seed(42))
             train_subset = Subset(train_dataset, list(range(0, 20000)))
             test_subset = Subset(test_dataset, list(range(0, 4000)))
 
             self.trainset = train_subset
             self.testset = test_subset
-            """
+            #"""
             print('plotting images directly from ff ds')
             num_images = 32
             print('num images:', num_images)
             fig, axs = plt.subplots(nrows=4, ncols=8, sharex=True)
             for i in range(num_images):
-                img, _, _ = ff_ds_train[i]
+                _, img, _ = train_dataset[i]
                 img = img.cpu()
                 print('img shape:', img.shape)
                 if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
@@ -126,7 +130,7 @@ class BaseSSL(nn.Module):
                 axs[row,col].imshow(img)
             plt.show()
             plt.close('all')
-            """
+            #"""
         
         else:
             raise NotImplementedError
@@ -237,9 +241,9 @@ class SimCLR(BaseSSL):
         #print('ssl.py batch1 shape:', batch[1].shape)
         x, _ = batch
         # visualize the pictures
-        """
+        #"""
         print('plotting a test pic in ssl.py')
-        num_images = len(x)
+        num_images = 16
         print('num images:', num_images)
         fig, axs = plt.subplots(nrows=4, ncols=int(num_images/4))
         for i in range(num_images):
@@ -248,12 +252,12 @@ class SimCLR(BaseSSL):
             #print('img shape:', img.shape)
             if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
                 img = torch.movedim(img, 0, -1)
-            row = int(i/8)
-            col = i%8
+            row = int(i/4)
+            col = i%4
             axs[row,col].imshow(img)
         plt.show()
         plt.close('all')
-        """
+        #"""
         z = self.model(x)
         #print('z shape:', z.shape)
         loss, acc = self.criterion(z)
