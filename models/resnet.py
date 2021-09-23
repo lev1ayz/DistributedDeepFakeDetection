@@ -23,7 +23,7 @@ class Flatten(nn.Module):
 class ResNetEncoder(models.resnet.ResNet):
     """Wrapper for TorchVison ResNet Model
     This was needed to remove the final FC Layer from the ResNet Model"""
-    def __init__(self, block, layers, cifar_head=False, hparams=None, pretrained=False):
+    def __init__(self, block, layers, cifar_head=False, hparams=None):
         super().__init__(block, layers)
         self.cifar_head = cifar_head
         if cifar_head:
@@ -58,5 +58,5 @@ class ResNet18(ResNetEncoder):
 
 
 class ResNet50(ResNetEncoder):
-    def __init__(self, cifar_head=True, hparams=None, pretrained=False):
-        super().__init__(models.resnet.Bottleneck, [3, 4, 6, 3], cifar_head=cifar_head, hparams=hparams, pretrained=pretrained)
+    def __init__(self, cifar_head=True, hparams=None):
+        super().__init__(models.resnet.Bottleneck, [3, 4, 6, 3], cifar_head=cifar_head, hparams=hparams)

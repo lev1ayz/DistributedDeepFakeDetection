@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import models
 from collections import OrderedDict
+from torchvision.models.resnet import model_urls
 from argparse import Namespace
 import yaml
 import os
@@ -20,6 +21,10 @@ class EncodeProject(nn.Module):
         if hparams.arch == 'ResNet50':
             cifar_head = (hparams.data == 'cifar')
             self.convnet = models.resnet.ResNet50(cifar_head=cifar_head, hparams=hparams)
+            if hparams.pretrained:
+                state_dict = torch.utils.model_zoo.load_url(model_urls[hparams.arch.lower()])
+                print(f'** Loading pretrained {hparams.arch} weights **')
+                self.convnet.load_state_dict(state_dict)
             self.encoder_dim = 2048
         elif hparams.arch == 'resnet18':
             self.convnet = models.resnet.ResNet18(cifar_head=(hparams.data == 'cifar'))
