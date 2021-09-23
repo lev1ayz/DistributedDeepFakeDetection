@@ -9,6 +9,7 @@ import dlib
 from imutils import face_utils
 import matplotlib.pyplot as plt
 from dfd_utils.resnet import get_resnet, name_to_params, StemCIFAR
+import itertools
 
 ROOT_PATH = '~/Desktop/codes/DeepFakeDetection/'
 
@@ -209,14 +210,14 @@ class Blackout():
             print('couldnt detect face')
             # TODO add some kind of exception
             return img
-            
+
         face = face[0] # There should only be a single face in an image
         shape  = self.predictor(image=img, box=face)
         shape = face_utils.shape_to_np(shape)
 
-        mouth = shape[range(48,68)]
-        r_eye = shape[range(36,42)]
-        l_eye = shape[range(42,48)]
+        mouth = Blackout.get_bounding_rectangle_from_coordinates(shape[range(48,68)])
+        r_eye = Blackout.get_bounding_rectangle_from_coordinates(shape[range(36,42)])
+        l_eye = Blackout.get_bounding_rectangle_from_coordinates(shape[range(42,48)])
 
         face_parts = [mouth, r_eye, l_eye]
 
@@ -225,5 +226,16 @@ class Blackout():
         
         return img
 
+    @staticmethod
+    def get_bounding_rectangle_from_coordinates(coordinates):
+        xs = [point[0] for point in coordinates]
+        ys = [point[1] for point in coordinates]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        rec = list(itertools.product(*[[min_x, max_x], [max_y,min_y]]))
+        # TODO do something more generic when you're not tired
+        rec[2], rec[3] = rec[3], rec[2] # This orders it so rec[2] is the closer point to rec[1]
+
+        return rec
         
         

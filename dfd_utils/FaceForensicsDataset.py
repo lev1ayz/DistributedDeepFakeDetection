@@ -177,15 +177,14 @@ class FaceForensicsDataset(Dataset):
             self.transform = get_transforms(img_width, img_height, CROPPED_SIZE)
 
         if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
-            #print(img.shape)
-            #print(img_path)
-            #img = transforms.ToPILImage()(img)
-            #img = transforms.ToTensor()(img)
-            pass
+        #     #print(img.shape)
+        #     #print(img_path)
+            img = transforms.ToPILImage()(img)
+            # img = transforms.ToTensor()(img)
         
-        #img1 = self.transform(img)
-        #img2 = self.transform(img)
-        img1 = img2 = img
+        img1 = self.transform(img)
+        img2 = self.transform(img)
+        #img1 = img2 = img
         
         # img1 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)
         # img2 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)
