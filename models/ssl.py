@@ -102,7 +102,7 @@ class BaseSSL(nn.Module):
             if self.hparams.deepfakes:
                 ff_ds_train.equalize_real_fakes
                 ff_ds_test.equalize_real_fakes
-                
+
             train_size = int(0.8 * len(ff_ds_train))
             tr_size = len(ff_ds_train) - train_size
             test_size = int(0.8 * len(ff_ds_test))
@@ -114,7 +114,7 @@ class BaseSSL(nn.Module):
 
             self.trainset = train_subset
             self.testset = test_subset
-            #"""
+            """
             print('plotting images directly from ff ds')
             num_images = 32
             print('num images:', num_images)
@@ -130,7 +130,7 @@ class BaseSSL(nn.Module):
                 axs[row,col].imshow(img)
             plt.show()
             plt.close('all')
-            #"""
+            """
         
         else:
             raise NotImplementedError
