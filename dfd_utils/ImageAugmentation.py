@@ -67,7 +67,7 @@ def augment_image(image, size, crop=True, flip=True, color_distort=True):
     return img
 
 
-def get_transforms(img_height, img_width, size=None, p=0.5, crop=True, color_jitter=True, flip=True):
+def get_transforms(img_height, img_width, size=None, p=0.5, crop=True, color_jitter=True, flip=True, grayscale=False):
     if not size:
         size = img_height
     aspect_ratio = img_width / img_height
@@ -94,6 +94,13 @@ def get_transforms(img_height, img_width, size=None, p=0.5, crop=True, color_jit
     else:
         flip = []
 
+    if grayscale is True:
+        grayscale = [transforms.Grayscale(3)]
+    else:
+        grayscale = []
+
     to_tensor = [transforms.ToTensor()]
-    transform_list = transforms.Compose(crop+color_jitter+flip+to_tensor)
+    
+    transform_list = transforms.Compose(crop+grayscale+color_jitter+flip+to_tensor)
+
     return transform_list
