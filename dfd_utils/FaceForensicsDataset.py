@@ -174,7 +174,7 @@ class FaceForensicsDataset(Dataset):
         img_width, img_height, _ = img.shape
         
         if self.transform is None:
-            self.transform = get_transforms(img_width, img_height, CROPPED_SIZE)
+            self.transform = get_transforms(img_width, img_height, CROPPED_SIZE, crop=False, color_jitter=False, grayscale=True)
 
         if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
         #     #print(img.shape)
