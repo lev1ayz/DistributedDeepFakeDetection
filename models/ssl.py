@@ -334,7 +334,7 @@ class SimCLR(BaseSSL):
                 transforms.RandomHorizontalFlip(0.5),
                 datautils.get_color_distortion(s=self.hparams.color_dist_s),
                 transforms.ToTensor(),
-                GaussianBlur(im_size // 10, 0.5),
+                #GaussianBlur(im_size // 10, 0.5),
                 datautils.Clip(),
             ])
             test_transform = train_transform
