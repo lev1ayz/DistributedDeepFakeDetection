@@ -12,7 +12,7 @@ import sys
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import socket
-
+import numpy as np
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 
@@ -171,8 +171,8 @@ def main_worker(gpu, ngpus, args):
         start_time = time.time()
         for batch in tqdm(train_loader):
             cur_iter += 1
+            batch = [item.to(device) for item in batch]
             #print('train.py batch len:', len(batch))
-            batch = [x.to(device) for x in batch]
             # Plot images for testing
             """
             print('plotting a test pic in train.py')
@@ -203,14 +203,15 @@ def main_worker(gpu, ngpus, args):
             """
             # For FaceForensics, take both augmetations and merge them into 1 list
             if args.data == 'faceforensics':
-                #batch = [batch[0] + batch[1], batch[2]]
+                batch = [torch.cat((batch[0],batch[1])), batch[2]]
                 """
                 I don't know why batch[1] is also twice the specified batch size,
                 I assume somewhere the code takes every item returned by the datasets __getitem()__
                 augemnts it and then does another augmentation and adds it to the batch so that every positive
                 example is at location i+original_batch_size where i is the current example so i discard batch[1].
+                ITS BECAUSE OF THE MULTIPLIER!!!
                 """
-                batch = [batch[0], batch[2]]
+                # batch = [batch[0], batch[2]]
 
             data_time += time.time() - start_time
 

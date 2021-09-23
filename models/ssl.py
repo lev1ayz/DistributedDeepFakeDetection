@@ -240,11 +240,12 @@ class SimCLR(BaseSSL):
         #print('ssl.py batch0 shape:', batch[0].shape)
         #print('ssl.py batch1 shape:', batch[1].shape)
         x, _ = batch
+        # if type(x) is not torch.Tensor.type:
+        #     x = torch.FloatTensor(x)
+        #print('x type:', type(x))
         # visualize the pictures
-        #"""
-        print('plotting a test pic in ssl.py')
-        num_images = 16
-        print('num images:', num_images)
+        """
+        num_images = len(x)
         fig, axs = plt.subplots(nrows=4, ncols=int(num_images/4))
         for i in range(num_images):
             img = x[i]
@@ -253,11 +254,11 @@ class SimCLR(BaseSSL):
             if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
                 img = torch.movedim(img, 0, -1)
             row = int(i/4)
-            col = i%4
+            col = i%(int(num_images/4))
             axs[row,col].imshow(img)
         plt.show()
         plt.close('all')
-        #"""
+        """
         z = self.model(x)
         #print('z shape:', z.shape)
         loss, acc = self.criterion(z)
