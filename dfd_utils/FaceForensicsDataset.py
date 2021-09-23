@@ -125,7 +125,7 @@ class FaceForensicsDataset(Dataset):
         
         self.targets = np.concatenate((real_targets,fake_targets))
         self.targets = list(self.targets)
-        self.targets = torch.tensor(self.targets)
+        #self.targets = torch.tensor(self.targets) # Why was this here?
         
         print('final imgs len:', len(self.img_paths))
         print('final masks len:',len(self.mask_paths))
