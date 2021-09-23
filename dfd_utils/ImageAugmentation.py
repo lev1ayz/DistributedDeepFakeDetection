@@ -95,12 +95,12 @@ def get_transforms(img_height, img_width, size=None, p=0.5, crop=True, color_jit
         flip = []
 
     if grayscale is True:
-        grayscale = [transforms.Grayscale(3)]
+        grayscale = [transforms.RandomGrayscale(p=0.5)]
     else:
         grayscale = []
 
     to_tensor = [transforms.ToTensor()]
-    
+
     transform_list = transforms.Compose(crop+grayscale+color_jitter+flip+to_tensor)
 
     return transform_list
