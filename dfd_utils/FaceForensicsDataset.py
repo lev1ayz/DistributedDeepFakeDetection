@@ -168,22 +168,24 @@ class FaceForensicsDataset(Dataset):
             #img = cv2.bitwise_and(img, img, mask = mask)
             img = img[np.ix_(mask.any(1), mask.any(0))]
 
-        # Blackout eyes and mouth
-        img = self.blackout.blackout_eyes_mouth(img)
+        
+        img1 = self.blackout.random_blackout_eyes_mouth(img) # Blackout eyes and mouth
+        img2 = self.blackout.random_blackout_half_of_img(img) # Blackout random half of img
 
         img_width, img_height, _ = img.shape
         
         if self.transform is None:
             self.transform = get_transforms(img_width, img_height, CROPPED_SIZE, crop=False, color_jitter=False, grayscale=True)
 
-        if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
-        #     #print(img.shape)
-        #     #print(img_path)
-            img = transforms.ToPILImage()(img)
+        # if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
+            #print(img.shape)
+            #print(img_path)
+            # img = transforms.ToPILImage()(img)
+            # img1 = transforms.ToPILImage()(img1)
             # img = transforms.ToTensor()(img)
         
-        img1 = self.transform(img)
-        img2 = self.transform(img)
+        img1 = self.transform(img1) # radomly cutout eyes or mouth + grayscale
+        img2 = self.transform(img2) # random cutout part of picture
         #img1 = img2 = img
         
         # img1 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)

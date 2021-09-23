@@ -10,6 +10,9 @@ from imutils import face_utils
 import matplotlib.pyplot as plt
 from dfd_utils.resnet import get_resnet, name_to_params, StemCIFAR
 import itertools
+import random
+from torchvision import transforms
+
 
 ROOT_PATH = '~/Desktop/codes/DeepFakeDetection/'
 
@@ -199,17 +202,22 @@ class Blackout():
         self.detector = dlib.get_frontal_face_detector()
         self.predictor = dlib.shape_predictor(path_to_shape_predictor)
 
+        self.mouth_pts = range(48,68)
+        self.r_eye_pts = range(36,42)
+        self.l_eye_pts = range(42,48)
+
     """
     Receives an image of a face
-    Returns image of a face with eyes and mouth blacked out
-    If no face is found, return original image
+    Returns a (PIL)image of a face with eyes(both) or mouth blacked out randomly
+    If no face is found, return original image converted to PIL
     """
-    def blackout_eyes_mouth(self, img):
+    def random_blackout_eyes_mouth(self, original_image):
+        img = original_image.copy()
         face = self.detector(img)
         if len(face) == 0:
             #print('couldnt detect face')
             # TODO add some kind of exception
-            return img
+            return transforms.ToPILImage()(img)
 
         face = face[0] # There should only be a single face in an image
         shape  = self.predictor(image=img, box=face)
@@ -219,12 +227,38 @@ class Blackout():
         r_eye = Blackout.get_bounding_rectangle_from_coordinates(shape[range(36,42)])
         l_eye = Blackout.get_bounding_rectangle_from_coordinates(shape[range(42,48)])
 
-        face_parts = [mouth, r_eye, l_eye]
+        face_parts = [[mouth], [r_eye, l_eye]]
 
-        for part in face_parts:
+        face_part = random.choice(face_parts)
+
+        for part in face_part:
             cv2.fillPoly(img, pts=np.int32([np.array(part)]), color=(0,0,0))
         
+        img = transforms.ToPILImage()(img)
+
         return img
+
+    def random_blackout_half_of_img(self, img):
+        img_arr = np.array(img)
+
+        if img_arr.shape[0] <= 3:
+            _, h, w = img_arr.shape
+        else:
+            h, w, _ = img_arr.shape
+
+        l_half = [[0, h], [0, int(w/2)]]
+        r_half = [[0, h], [int(w/2), w]]
+        upper_half = [[int(h/2),h], [0,w]]
+        lower_half = [[0,int(h/2)], [0,w]]
+        halves = [r_half, l_half, upper_half, lower_half]
+
+        area = random.choice(halves)
+        img_arr[area[0][0]: area[0][1], area[1][0]:area[1][1], :] = (0,0,0)
+
+        aug_img = transforms.ToPILImage()(img_arr)
+
+        return aug_img
+
 
     @staticmethod
     def get_bounding_rectangle_from_coordinates(coordinates):
