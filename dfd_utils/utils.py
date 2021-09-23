@@ -207,7 +207,7 @@ class Blackout():
     def blackout_eyes_mouth(self, img):
         face = self.detector(img)
         if len(face) == 0:
-            print('couldnt detect face')
+            #print('couldnt detect face')
             # TODO add some kind of exception
             return img
 
