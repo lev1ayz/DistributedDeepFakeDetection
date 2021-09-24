@@ -1,6 +1,6 @@
 from argparse import Namespace, ArgumentParser
 import sys
-sys.path.insert(0, '/srv/DeepFakeDetection/andrew_atonov_simclr_pytorch/simclr-pytorch/')
+sys.path.insert(0, '/home/shirbar/notebooks/DistributedDeepFakeDetection/')
 
 import os
 import torch
@@ -33,7 +33,7 @@ class BaseSSL(nn.Module):
     """
     DATA_ROOT = os.environ.get('DATA_ROOT', os.path.dirname(os.path.abspath(__file__)) + '/data')
     IMAGENET_PATH = os.environ.get('IMAGENET_PATH', '/home/aashukha/imagenet/raw-data/')
-    FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
+    FF_PATH = '/home/shirbar/face-forensics/split_ds/'
 
     def __init__(self, hparams):
         super().__init__()
@@ -95,21 +95,24 @@ class BaseSSL(nn.Module):
             print('FF train dir:', traindir)
             testdir = os.path.join(self.FF_PATH, 'test')
             print('FF test dir:', testdir)
-            ff_ds_train = FaceForensicsDataset(traindir, transform=None,
+            if self.hparams.new_transforms:
+                print('** Using new FF transforms**')
+                train_transform, test_transform = None, None
+            else:
+                print('** Using original SimCLR transforms')
+                print(train_transform)
+            ff_ds_train = FaceForensicsDataset(traindir, transform=train_transform,
                                                load_deepfakes=self.hparams.deepfakes, load_face2face=False)
-            ff_ds_test = FaceForensicsDataset(testdir, transform=None,
+            ff_ds_test = FaceForensicsDataset(testdir, transform=test_transform,
                                               load_deepfakes=self.hparams.deepfakes, load_face2face=False)
             if self.hparams.deepfakes:
                 ff_ds_train.equalize_real_fakes
                 ff_ds_test.equalize_real_fakes
 
             train_size = int(0.8 * len(ff_ds_train))
-            tr_size = len(ff_ds_train) - train_size
-            test_size = int(0.8 * len(ff_ds_test))
-            ts_size = len(ff_ds_test) - test_size
-            train_dataset, _ = torch.utils.data.random_split(ff_ds_train, [train_size, tr_size], generator=torch.Generator().manual_seed(42))
-            test_dataset, _ = torch.utils.data.random_split(ff_ds_test, [test_size, ts_size], generator=torch.Generator().manual_seed(42))
-            train_subset = Subset(train_dataset, list(range(0, 20000)))
+            test_size = len(ff_ds_train) - train_size
+            train_dataset, test_dataset = torch.utils.data.random_split(ff_ds_train, [train_size, test_size], generator=torch.Generator().manual_seed(self.hparams.seed))
+            train_subset = Subset(train_dataset, list(range(0, 28000)))
             test_subset = Subset(test_dataset, list(range(0, 4000)))
 
             self.trainset = train_subset
@@ -299,7 +302,8 @@ class SimCLR(BaseSSL):
 
         batch_sampler = datautils.MultiplyBatchSampler
         # batch_sampler.MULTILPLIER = self.hparams.multiplier if self.hparams.dist == 'dp' else 1
-        batch_sampler.MULTILPLIER = self.hparams.multiplier
+        
+        batch_sampler.MULTILPLIER = 1 if self.hparams.data == 'faceforensics' else self.hparams.multiplier
 
         # need for DDP to sync samplers between processes
         self.trainsampler = trainsampler
