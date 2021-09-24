@@ -298,8 +298,8 @@ class SimCLR(BaseSSL):
             testsampler = torch.utils.data.sampler.RandomSampler(self.testset)
 
         batch_sampler = datautils.MultiplyBatchSampler
-        # batch_sampler.MULTILPLIER = self.hparams.multiplier if self.hparams.dist == 'dp' else 1
-        batch_sampler.MULTILPLIER = self.hparams.multiplier
+        batch_sampler.MULTILPLIER = 1 #self.hparams.multiplier if self.hparams.dist == 'dp' else 1
+        #batch_sampler.MULTILPLIER = self.hparams.multiplier
 
         # need for DDP to sync samplers between processes
         self.trainsampler = trainsampler
