@@ -46,6 +46,8 @@ def add_learner_params(parser):
     parser.add_argument('--root', default='/mnt/results', type=str, help='Root')
     parser.add_argument('--deepfakes', default=False, type=bool, help='load deepfakes')
     parser.add_argument('--pretrained', default=False, type=bool, help='load resnet with torchvision pretrained weights')
+    parser.add_argument('--new_transforms', default=True, type=bool, help='use special FF transforms')
+
     # parallelizm params:
     parser.add_argument('--dist', default='dp', type=str,
         help='dp: DataParallel, ddp: DistributedDataParallel',
@@ -275,8 +277,8 @@ def main_worker(gpu, ngpus, args):
                 break
 
             start_time = time.time()
-
-    save_checkpoint(args.root, model, optimizer,cur_iter)
+    if args.rank == 0:
+        save_checkpoint(args.root, model, optimizer,cur_iter)
 
     if args.dist == 'ddp':
         dist.destroy_process_group()

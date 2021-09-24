@@ -3,7 +3,7 @@ aug: true
 batch_size: 256
 ckpt: ''
 color_dist_s: 1.0
-config_file: null
+config_file: ''
 data: faceforensics
 dist: ddp
 dist_address: 'localhost'
@@ -30,4 +30,5 @@ warmup: 0.1
 weight_decay: 1.0e-06
 workers: 8
 world_size: 1
-deepfakes: False
+deepfakes: false
+new_transforms: False
