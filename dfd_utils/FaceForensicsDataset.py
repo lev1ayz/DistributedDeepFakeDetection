@@ -179,12 +179,12 @@ class FaceForensicsDataset(Dataset):
             img2 = self.blackout.random_blackout_half_of_img(img) # Blackout random half of img
             self.transform = get_transforms(img_width, img_height, CROPPED_SIZE, crop=False, color_jitter=False, grayscale=True)
         else:
-            img1 = img
-            img2 = img
-        # if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
+            img1 = transforms.ToPILImage()(img)
+            img2 = transforms.ToPILImage()(img)
+        #if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
             #print(img.shape)
             #print(img_path)
-            # img = transforms.ToPILImage()(img)
+             #img = transforms.ToPILImage()(img)
             # img1 = transforms.ToPILImage()(img1)
             # img = transforms.ToTensor()(img)
         
