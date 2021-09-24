@@ -169,14 +169,18 @@ class FaceForensicsDataset(Dataset):
             img = img[np.ix_(mask.any(1), mask.any(0))]
 
         
-        img1 = self.blackout.random_blackout_eyes_mouth(img) # Blackout eyes and mouth
-        img2 = self.blackout.random_blackout_half_of_img(img) # Blackout random half of img
 
-        img_width, img_height, _ = img.shape
+
+        
         
         if self.transform is None:
+            img_width, img_height, _ = img.shape
+            img1 = self.blackout.random_blackout_eyes_mouth(img) # Blackout eyes and mouth
+            img2 = self.blackout.random_blackout_half_of_img(img) # Blackout random half of img
             self.transform = get_transforms(img_width, img_height, CROPPED_SIZE, crop=False, color_jitter=False, grayscale=True)
-
+        else:
+            img1 = img
+            img2 = img
         # if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
             #print(img.shape)
             #print(img_path)
@@ -318,7 +322,7 @@ class FaceForensicsForClassificationDataset(FaceForensicsDataset):
         #print('width :', width, ' height:', height)
 
         if self.transform is None:
-            self.transform = get_transforms(width, height, CROPPED_SIZE, crop=False, color_jitter=False, flip=False)
+            self.transform = get_transforms(width, height, CROPPED_SIZE, crop=False, color_jitter=False, flip=True)
 
         if not (isinstance(img, type(torch.TensorType)) or isinstance(img, type(Image))):
             #print(img.shape)
