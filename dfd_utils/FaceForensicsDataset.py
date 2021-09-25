@@ -9,6 +9,7 @@ import numpy as np
 from torch.utils.data import Dataset
 import os
 import cv2
+import re
 from dfd_utils import ImageAugmentation
 importlib.reload(ImageAugmentation)
 from dfd_utils.ImageAugmentation import get_transforms
@@ -37,22 +38,28 @@ Note: load_two functionality is not impl.
 """
 class FaceForensicsDataset(Dataset):
     def __init__(self, root_dir, transform=None, mtcnn=None, load_deepfakes=False, load_face2face=False,
-                 masking_transforms=True):
+                 load_neural_textures=False, masking_transforms=True):
         self.root_dir = root_dir
         
-        self.real_img_actors_path = self.root_dir + '/original_sequences/actors/c23/images'
-        self.real_img_youtube_path = self.root_dir + '/original_sequences/youtube/c23/images'
+        # Real images
+        self.real_img_actors_path           = self.root_dir + '/original_sequences/actors/c23/images'
+        self.real_img_youtube_path          = self.root_dir + '/original_sequences/youtube/c23/images'
         
-        self.real_masks_actors_path = None # no masks so far
-        self.real_masks_youtube_path = self.root_dir + '/original_sequences/youtube/masks'
+        # Real masks
+        self.real_masks_actors_path         = None # no masks so far
+        self.real_masks_youtube_path        = self.root_dir + '/original_sequences/youtube/masks'
         
-        self.fake_img_actors_path = self.root_dir + '/manipulated_sequences/DeepFakeDetection/c23/images'
-        self.fake_img_youtube_path = self.root_dir + '/manipulated_sequences/Deepfakes/c23/images'
-        self.fake_img_face2face_path = self.root_dir + '/manipulated_sequences/Face2Face/c23/images'
+        # Fake images
+        self.fake_img_actors_path           = self.root_dir + '/manipulated_sequences/DeepFakeDetection/c23/images'
+        self.fake_img_youtube_path          = self.root_dir + '/manipulated_sequences/Deepfakes/c23/images'
+        self.fake_img_face2face_path        = self.root_dir + '/manipulated_sequences/Face2Face/c23/images'
+        self.fake_img_nerualtextures_path   = self.root_dir + '/manipulated_sequences/NeuralTextures/c23/images'
         
-        self.fake_masks_actors_path = self.root_dir + '/manipulated_sequences/DeepFakeDetection/masks/images'
-        self.fake_masks_youtube_path = self.root_dir + '/manipulated_sequences/Deepfakes/masks/images'
-        self.fake_masks_face2face_path = self.root_dir + '/manipulated_sequences/Face2Face/masks/images'
+        # Fake Masks
+        self.fake_masks_actors_path         = self.root_dir + '/manipulated_sequences/DeepFakeDetection/masks/images'
+        self.fake_masks_youtube_path        = self.root_dir + '/manipulated_sequences/Deepfakes/masks/images'
+        self.fake_masks_face2face_path      = self.root_dir + '/manipulated_sequences/Face2Face/masks/images'
+        self.fake_masks_nerualtextures_path = self.root_dir + '/manipulated_sequences/NeuralTextures/masks/c23/images'
         
         self.transform = transform
         
@@ -70,63 +77,49 @@ class FaceForensicsDataset(Dataset):
         self.mtcnn = mtcnn
         self.load_deepfakes = load_deepfakes
         self.load_face2face = load_face2face
+        self.load_neural_textures = load_neural_textures
         self.masking_transforms = masking_transforms
-        # load youtube part
-        self.real_img_paths = sorted(self.load_img_paths_to_list(self.real_img_youtube_path, self.real_img_paths))
-        self.real_masks_paths = sorted(self.load_img_paths_to_list(self.real_masks_youtube_path, self.real_masks_paths))
-        
+
+        self.blackout = Blackout()
+
+        # Load real imgs
+        self.real_img_paths, self.real_masks_paths = self.load_imgs_and_masks(self.real_img_youtube_path,
+                                                                            self.real_masks_youtube_path)
+        # Load fake imgs
         if self.load_deepfakes is True:
-            self.fake_img_paths = sorted(self.load_img_paths_to_list(self.fake_img_youtube_path, self.fake_img_paths))
-            self.fake_img_masks_paths = sorted(self.load_img_paths_to_list(
-                                                                    self.fake_masks_youtube_path,
-                                                                    self.fake_img_masks_paths))
+            self.fake_img_paths, self.fake_img_masks_paths = self.load_imgs_and_masks(
+                                                        self.fake_img_youtube_path,
+                                                        self.fake_masks_youtube_path)
         
         if self.load_face2face is True:             
-            self.fake_img_paths = sorted(self.load_img_paths_to_list(
-                                                        self.fake_img_face2face_path,
-                                                        self.fake_img_paths))
-            self.fake_img_masks_paths = sorted(self.load_img_paths_to_list(
-                                                                    self.fake_masks_face2face_path,
-                                                                    self.fake_img_masks_paths))
-        
+            face2face_imgs, face2face_masks = self.load_imgs_and_masks(
+                                                                    self.fake_img_face2face_path,
+                                                                    self.fake_masks_face2face_path)
+            # append to the face2face to the fake imgs
+            self.fake_img_paths = self.fake_img_paths + face2face_imgs
+            self.fake_img_masks_paths = self.fake_img_masks_paths + face2face_masks
+
+        if self.load_neural_textures is True:
+            neural_textures_imgs, neural_textures_masks = self.load_imgs_and_masks(
+                                                                                self.fake_img_nerualtextures_path,
+                                                                                self.fake_masks_nerualtextures_path)
+            # append neural textures to the fake imgs
+            self.fake_img_paths = self.fake_img_paths + neural_textures_imgs
+            self.fake_img_masks_paths = self.fake_img_masks_paths + neural_textures_masks
+
         print('real imgs len:',len(self.real_img_paths))
         print('masks len:',len(self.real_masks_paths))
         print('fakes imgs len:',len(self.fake_img_paths))
         print('fakes masks len:',len(self.fake_img_masks_paths))
         
+        # Transfer real and fakes to a single list
+        self.img_paths = self.real_img_paths + self.fake_img_paths
+        self.mask_paths = self.real_masks_paths + self.fake_img_masks_paths
         
-        # TODO add loading actors part
-        
-        
-        # transfer to one list
-        print('ordering real imgs and masks...')
-        self.transfer_img_paths_and_mask_paths_to_new_lists(self,
-                                                            self.real_img_paths,
-                                                            self.real_masks_paths,
-                                                            self.img_paths,
-                                                            self.mask_paths)
-        real_targets = np.ones_like(self.img_paths, dtype=np.int8)
-        print('real imgs and masks in order!')
-        
-        if self.load_deepfakes is True or self.load_face2face is True:
-            print('ordering fake imgs and masks....')
-            tmp_img_list = []
-            tmp_mask_list = []
-            self.transfer_img_paths_and_mask_paths_to_new_lists(self,
-                                                                self.fake_img_paths,
-                                                                self.fake_img_masks_paths,
-                                                                tmp_img_list,
-                                                                tmp_mask_list)
-            fake_targets = np.zeros(len(tmp_img_list), dtype=np.int8)
-            self.img_paths = self.img_paths + tmp_img_list
-            self.mask_paths = self.mask_paths + tmp_mask_list
-            print('fake imgs and masks in order!')
-        else:
-            fake_targets = []
-        
-        self.targets = np.concatenate((real_targets,fake_targets))
+        # Create appropriate labels
+        self.targets = np.ones_like(self.real_img_paths, dtype=np.int8)
+        self.targets = np.concatenate((self.targets ,np.zeros(len(self.fake_img_paths), dtype=np.int8)))
         self.targets = list(self.targets)
-        #self.targets = torch.tensor(self.targets) # Why was this here?
         
         print('final imgs len:', len(self.img_paths))
         print('final masks len:',len(self.mask_paths))
@@ -134,10 +127,6 @@ class FaceForensicsDataset(Dataset):
         print('asserting order')
         self.assert_order(self.img_paths, self.mask_paths)
 
-        self.blackout = Blackout()
-        
-
-        
     def __len__(self):
         return len(self.img_paths)
   
@@ -225,37 +214,24 @@ class FaceForensicsDataset(Dataset):
         print('after eq:', 'total:', len(self.img_paths))
 
         return
-    
-    """
-    each mask should have an img and i assume initially the list should be somewhat ordered
-    """
-    @staticmethod
-    def transfer_img_paths_and_mask_paths_to_new_lists(self,
-                                                       img_list,
-                                                       mask_list,
-                                                       new_img_list,
-                                                       new_mask_list):
-        img_div = 0
-        for idx,mask in enumerate(mask_list):
-            # only transfer if mask has a face
-            img = img_list[idx + img_div]
-            skip = False
-            while self.get_suffix_from_path(mask) != self.get_suffix_from_path(img):
-                img_div+=1
-                if img_div + idx >= len(img_list):
-                    img_div = 0
-                    skip = True
-                    break
-                img = img_list[idx + img_div]
-            
-            if skip is True:
-                continue
-                
-            new_img_list.append(img)
-            new_mask_list.append(mask)
-                
-        return new_img_list, new_mask_list
-    
+
+    def load_imgs_and_masks(self, imgs_path, masks_path):
+        img_list = sorted(self.load_img_paths_to_list(imgs_path))
+        masks_list = sorted(self.load_img_paths_to_list(masks_path))
+
+        img_list, masks_list = self.get_ordered_img_masks_lists(img_list, masks_list)
+
+        return img_list, masks_list
+
+    def get_ordered_img_masks_lists(self, img_list, mask_list):
+        img_suffix_set = set([FaceForensicsDataset.get_suffix_from_path(img) for img in img_list])
+        mask_suffix_set = set([FaceForensicsDataset.get_suffix_from_path(mask) for mask in mask_list])
+
+        orderd_img_list = sorted([img for img in img_list if (FaceForensicsDataset.get_suffix_from_path(img) in mask_suffix_set)])
+        ordered_mask_list = sorted([mask for mask in mask_list if (FaceForensicsDataset.get_suffix_from_path(mask) in img_suffix_set)])
+
+        return orderd_img_list, ordered_mask_list
+
     @staticmethod
     def get_suffix_from_path(path):
         file = os.path.basename(path)
@@ -271,7 +247,8 @@ class FaceForensicsDataset(Dataset):
         print('assertion passed!')
         return
                                                                                   
-    def load_img_paths_to_list(self, path, lst):
+    def load_img_paths_to_list(self, path):
+        lst = []
         for subdir, dirs, files in os.walk(path, topdown=True):
             for file in files:
                 if self.check_img_valid(file) is True:
