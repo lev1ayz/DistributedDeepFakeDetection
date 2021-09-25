@@ -17,9 +17,6 @@ from dfd_utils.utils import GenerateFaceMasks, Blackout
 
 from PIL import Image
 
-#import sys
-#sys.path.insert(0, '/srv/DeepFakeDetection/andrew_atonov_simclr_pytorch/simclr-pytorch/dfd_utils/')
-#from utils import GenerateFaceMasks
 
 # Custom Dataset class for loading images   
 """
@@ -138,10 +135,10 @@ class FaceForensicsDataset(Dataset):
         mask_path = self.mask_paths[idx]
         
         img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # maybe dont to save loading time
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mask = cv2.imread(mask_path, 0)
         if mask is None:
-            print('mask path:', mask_path)
+            print('no mask at path:', mask_path)
 
         if mask is None or all(item == False for item in mask.any(1)) == True:
             print('invalid mask')
@@ -155,7 +152,6 @@ class FaceForensicsDataset(Dataset):
             # if even after remasking, theres no mask, use whole picture
             pass
         else:
-            #img = cv2.bitwise_and(img, img, mask = mask)
             img = img[np.ix_(mask.any(1), mask.any(0))]
 
 
@@ -173,19 +169,10 @@ class FaceForensicsDataset(Dataset):
         else:
             img1 = img
             img2 = img
-        #if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
-            #print(img.shape)
-            #print(img_path)
-             #img = transforms.ToPILImage()(img)
-            # img1 = transforms.ToPILImage()(img1)
-            # img = transforms.ToTensor()(img)
-        
-        img1 = self.transform(img1) # radomly cutout eyes or mouth + grayscale
-        img2 = self.transform(img2) # random cutout part of picture
-        #img1 = img2 = img
-        
-        # img1 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)
-        # img2 = augment_image(img,size=CROPPED_SIZE, crop=False, flip=False, color_distort=False)
+
+        img1 = self.transform(img1)
+        img2 = self.transform(img2)
+
                 
         return img1, img2, self.targets[idx]
 
@@ -242,16 +229,16 @@ class FaceForensicsDataset(Dataset):
         assert len(img_list) == len(mask_list), "img list len different from mask list len!"
         
         for idx, img in enumerate(img_list):
-            assert self.get_suffix_from_path(img) == self.get_suffix_from_path(mask_list[idx]) , "mask incompatible with image!"
+            assert FaceForensicsDataset.get_suffix_from_path(img) == FaceForensicsDataset.get_suffix_from_path(mask_list[idx]) , "mask incompatible with image!"
         
         print('assertion passed!')
         return
                                                                                   
-    def load_img_paths_to_list(self, path):
+    def load_img_paths_to_list(self,path):
         lst = []
         for subdir, dirs, files in os.walk(path, topdown=True):
             for file in files:
-                if self.check_img_valid(file) is True:
+                if FaceForensicsDataset.check_img_valid(file) is True:
                     lst.append(os.path.join(subdir, file))
                 else:
                     print('invalid img:', file)
@@ -285,7 +272,6 @@ class FaceForensicsForClassificationDataset(FaceForensicsDataset):
             path_to_imgs = os.path.dirname(img_path)
             path_to_masks = os.path.dirname(os.path.dirname(mask_path)) # avoid creating a subfolder within mask folder
             print('remasking:', path_to_imgs, ' to dest:', path_to_masks)
-            #GenerateFaceMasks(path_to_imgs, overwrite=True)
             GenerateFaceMasks(path_to_imgs, masks_root_path=path_to_masks, overwrite=True)
             mask = cv2.imread(mask_path, 0)
 
@@ -293,20 +279,14 @@ class FaceForensicsForClassificationDataset(FaceForensicsDataset):
             # if even after remasking, no mask use whole picture
             pass
         else:
-            #img = cv2.bitwise_and(img, img, mask = mask)
             img = img[np.ix_(mask.any(1), mask.any(0))]
 
-        #print('img type:', type(img))
-        #print('img shape', img.shape)
         width, height, _ = img.shape
-        #print('width :', width, ' height:', height)
 
         if self.transform is None:
             self.transform = get_transforms(width, height, CROPPED_SIZE, crop=False, color_jitter=False, flip=True)
 
         if not (isinstance(img, type(torch.TensorType)) or isinstance(img, type(Image))):
-            #print(img.shape)
-            #print(img_path)
             img = transforms.ToPILImage()(img)
         
         img = self.transform(img)
