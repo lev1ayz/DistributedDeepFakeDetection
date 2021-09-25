@@ -205,7 +205,10 @@ def main_worker(gpu, ngpus, args):
             """
             # For FaceForensics, take both augmetations and merge them into 1 list
             if args.data == 'faceforensics':
-                batch = [torch.cat((batch[0],batch[1])), batch[2]]
+                if args.problem == 'eval':
+                    batch = [batch[0], batch[2]]
+                else:
+                    batch = [torch.cat((batch[0],batch[1])), batch[2]]
                 """
                 I don't know why batch[1] is also twice the specified batch size,
                 I assume somewhere the code takes every item returned by the datasets __getitem()__
@@ -213,7 +216,7 @@ def main_worker(gpu, ngpus, args):
                 example is at location i+original_batch_size where i is the current example so i discard batch[1].
                 ITS BECAUSE OF THE MULTIPLIER!!!
                 """
-                # batch = [batch[0], batch[2]]
+
 
             data_time += time.time() - start_time
 

@@ -33,7 +33,7 @@ class BaseSSL(nn.Module):
     """
     DATA_ROOT = os.environ.get('DATA_ROOT', os.path.dirname(os.path.abspath(__file__)) + '/data')
     IMAGENET_PATH = os.environ.get('IMAGENET_PATH', '/home/aashukha/imagenet/raw-data/')
-    FF_PATH = '/home/shirbar/face-forensics/split_ds/'
+    FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
 
     def __init__(self, hparams):
         super().__init__()
@@ -52,7 +52,7 @@ class BaseSSL(nn.Module):
         parser = ArgumentParser()
         cls.add_model_hparams(parser)
         hparams = parser.parse_args([], namespace=ckpt['hparams'])
-
+        print('device is:',device)
         res = cls(hparams, device=device)
         res.load_state_dict(ckpt['state_dict'])
         return res
@@ -102,19 +102,33 @@ class BaseSSL(nn.Module):
                 print('** Using original SimCLR transforms')
                 print(train_transform)
             ff_ds_train = FaceForensicsDataset(traindir, transform=train_transform,
+                                               masking_transforms=self.hparams.new_transforms,
                                                load_deepfakes=self.hparams.deepfakes, load_face2face=False)
             ff_ds_test = FaceForensicsDataset(testdir, transform=test_transform,
+                                              masking_transforms=self.hparams.new_transforms,
                                               load_deepfakes=self.hparams.deepfakes, load_face2face=False)
             if self.hparams.deepfakes:
                 ff_ds_train.equalize_real_fakes
                 ff_ds_test.equalize_real_fakes
 
             train_size = int(0.8 * len(ff_ds_train))
-            test_size = len(ff_ds_train) - train_size
-            train_dataset, test_dataset = torch.utils.data.random_split(ff_ds_train, [train_size, test_size], generator=torch.Generator().manual_seed(self.hparams.seed))
+            tr_size = len(ff_ds_train) - train_size
+            test_size = int(0.8 * len(ff_ds_test))
+            ts_size = len(ff_ds_test) - test_size
+            train_dataset, _ = torch.utils.data.random_split(ff_ds_train, [train_size, tr_size],
+                                                             generator=torch.Generator().manual_seed(self.hparams.seed))
+            test_dataset, _ = torch.utils.data.random_split(ff_ds_test, [test_size, ts_size],
+                                                             generator=torch.Generator().manual_seed(self.hparams.seed))
             train_subset = Subset(train_dataset, list(range(0, 28000)))
             test_subset = Subset(test_dataset, list(range(0, 4000)))
-
+            indice_file_path = os.path.join(self.hparams.root,'subset_indices.txt')
+            if not os.path.exists(indice_file_path):
+                with open(indice_file_path,'w') as f:
+                    f.write('train indices:')
+                    f.write(' '.join([str(c) for c in train_subset.indices]))
+                    f.write('test indices:')
+                    f.write(' '.join([str(c) for c in test_subset.indices]))
+                    f.close()
             self.trainset = train_subset
             self.testset = test_subset
             """
@@ -205,6 +219,8 @@ class SimCLR(BaseSSL):
             if self.hparams.sync_bn:
                 model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
             dist.barrier()
+            print('ssl.__init__:device is:', device)
+            print('hparams.gpu :', hparams.gpu)
             if device is not None:
                 model = model.to(device)
             self.model = DDP(model, [hparams.gpu], find_unused_parameters=True)
@@ -432,7 +448,7 @@ class SSLEval(BaseSSL):
         return self.encoder.model(x.float(), out='h')
 
     def step(self, batch):
-        if self.hparams.problem == 'eval' and self.hparams.data == 'imagenet':
+        if self.hparams.problem == 'eval' and (self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics'):
             batch[0] = batch[0] / 255.
         h, y = batch
         if self.hparams.precompute_emb_bs == -1:
@@ -556,7 +572,7 @@ class SSLEval(BaseSSL):
             test_transform = transforms.Compose([
                 transforms.ToTensor(),
             ])
-        elif self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics':
+        elif self.hparams.data == 'imagenet':
             train_transform = transforms.Compose([
                 transforms.RandomResizedCrop(
                     224,
@@ -569,6 +585,18 @@ class SSLEval(BaseSSL):
             ])
             test_transform = transforms.Compose([
                 datautils.CenterCropAndResize(proportion=0.875, size=224),
+                transforms.ToTensor(),
+                lambda x: (255 * x).byte(),
+            ])
+        elif self.hparams.data == 'faceforensics':
+            train_transform = transforms.Compose([
+                datautils.CenterCropAndResize(proportion=0.95, size=224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                lambda x: (255*x).byte(),
+            ])
+            test_transform = transforms.Compose([
+                datautils.CenterCropAndResize(proportion=0.95, size=224),
                 transforms.ToTensor(),
                 lambda x: (255 * x).byte(),
             ])

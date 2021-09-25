@@ -36,7 +36,8 @@ to impl. a superised learnin dataset if we ant it
 Note: load_two functionality is not impl.
 """
 class FaceForensicsDataset(Dataset):
-    def __init__(self, root_dir, transform=None, mtcnn=None, load_deepfakes=False, load_face2face=False):
+    def __init__(self, root_dir, transform=None, mtcnn=None, load_deepfakes=False, load_face2face=False,
+                 masking_transforms=True):
         self.root_dir = root_dir
         
         self.real_img_actors_path = self.root_dir + '/original_sequences/actors/c23/images'
@@ -69,7 +70,7 @@ class FaceForensicsDataset(Dataset):
         self.mtcnn = mtcnn
         self.load_deepfakes = load_deepfakes
         self.load_face2face = load_face2face
-                
+        self.masking_transforms = masking_transforms
         # load youtube part
         self.real_img_paths = sorted(self.load_img_paths_to_list(self.real_img_youtube_path, self.real_img_paths))
         self.real_masks_paths = sorted(self.load_img_paths_to_list(self.real_masks_youtube_path, self.real_masks_paths))
@@ -168,19 +169,21 @@ class FaceForensicsDataset(Dataset):
             #img = cv2.bitwise_and(img, img, mask = mask)
             img = img[np.ix_(mask.any(1), mask.any(0))]
 
-        
 
-
-        
-        
         if self.transform is None:
             img_width, img_height, _ = img.shape
+            self.transform = get_transforms(img_width, img_height, CROPPED_SIZE, crop=False, color_jitter=False, grayscale=True)
+
+        if self.masking_transforms:
             img1 = self.blackout.random_blackout_eyes_mouth(img) # Blackout eyes and mouth
             img2 = self.blackout.random_blackout_half_of_img(img) # Blackout random half of img
-            self.transform = get_transforms(img_width, img_height, CROPPED_SIZE, crop=False, color_jitter=False, grayscale=True)
-        else:
+
+        elif not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
             img1 = transforms.ToPILImage()(img)
             img2 = transforms.ToPILImage()(img)
+        else:
+            img1 = img
+            img2 = img
         #if not (isinstance(img, type(torch.TensorType))) or not (isinstance(img, type(Image))):
             #print(img.shape)
             #print(img_path)
