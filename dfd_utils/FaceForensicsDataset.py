@@ -35,9 +35,8 @@ Note: load_two functionality is not impl.
 """
 class FaceForensicsDataset(Dataset):
     def __init__(self, root_dir, transform=None, mtcnn=None, load_deepfakes=False, load_face2face=False,
-                 load_neural_textures=False, masking_transforms=True):
+                 load_neural_textures=False, masking_transforms=False):
         self.root_dir = root_dir
-        
         # Real images
         self.real_img_actors_path           = self.root_dir + '/original_sequences/actors/c23/images'
         self.real_img_youtube_path          = self.root_dir + '/original_sequences/youtube/c23/images'
@@ -56,7 +55,7 @@ class FaceForensicsDataset(Dataset):
         self.fake_masks_actors_path         = self.root_dir + '/manipulated_sequences/DeepFakeDetection/masks/images'
         self.fake_masks_youtube_path        = self.root_dir + '/manipulated_sequences/Deepfakes/masks/images'
         self.fake_masks_face2face_path      = self.root_dir + '/manipulated_sequences/Face2Face/masks/images'
-        self.fake_masks_nerualtextures_path = self.root_dir + '/manipulated_sequences/NeuralTextures/masks/c23/images'
+        self.fake_masks_nerualtextures_path = self.root_dir + '/manipulated_sequences/NeuralTextures/masks/images'
         
         self.transform = transform
         
@@ -80,26 +79,35 @@ class FaceForensicsDataset(Dataset):
         self.blackout = Blackout()
 
         # Load real imgs
+        print('loading real images...')
         self.real_img_paths, self.real_masks_paths = self.load_imgs_and_masks(self.real_img_youtube_path,
                                                                             self.real_masks_youtube_path)
+        print('real images loaded!')
+
         # Load fake imgs
         if self.load_deepfakes is True:
+            print('loading deepfakes...')
             self.fake_img_paths, self.fake_img_masks_paths = self.load_imgs_and_masks(
                                                         self.fake_img_youtube_path,
                                                         self.fake_masks_youtube_path)
+            print('deepfakes loaded!')
         
-        if self.load_face2face is True:             
+        if self.load_face2face is True:       
+            print('loading face2face...')      
             face2face_imgs, face2face_masks = self.load_imgs_and_masks(
                                                                     self.fake_img_face2face_path,
                                                                     self.fake_masks_face2face_path)
+            print('face2face loaded!')
             # append to the face2face to the fake imgs
             self.fake_img_paths = self.fake_img_paths + face2face_imgs
             self.fake_img_masks_paths = self.fake_img_masks_paths + face2face_masks
 
         if self.load_neural_textures is True:
+            print('loading neural textures...')
             neural_textures_imgs, neural_textures_masks = self.load_imgs_and_masks(
                                                                                 self.fake_img_nerualtextures_path,
                                                                                 self.fake_masks_nerualtextures_path)
+            print('neural textures loaded!')
             # append neural textures to the fake imgs
             self.fake_img_paths = self.fake_img_paths + neural_textures_imgs
             self.fake_img_masks_paths = self.fake_img_masks_paths + neural_textures_masks

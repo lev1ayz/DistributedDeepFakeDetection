@@ -8,24 +8,18 @@ import subprocess
 import dlib
 from imutils import face_utils
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from dfd_utils.resnet import get_resnet, name_to_params, StemCIFAR
 import itertools
 import random
 from torchvision import transforms
-
-
-ROOT_PATH = '~/Desktop/codes/DeepFakeDetection/'
-
-#subprocess.check_call([sys.executable, '-m', 'pip', 'install', 
-#'facenet-pytorch'])
-#subprocess.check_call([sys.executable, '-m', 'pip', 'install', 
-#'mtcnn-opencv'])
-# !pip install facenet-pytorch
+from tqdm import tqdm
+from sklearn.manifold import TSNE
 import cv2
 from facenet_pytorch import MTCNN
-#from mtcnn_cv2 import MTCNN
 from skimage import io, transform
 
+ROOT_PATH = '~/Desktop/codes/DeepFakeDetection/'
 
 def load_chkpt(model_path, chkpt_path, model_head, optimizer=None, head=None):
     chkpt = torch.load(chkpt_path)
@@ -196,6 +190,74 @@ def GenerateFaceMasks(path_to_imgs, masks_root_path=None, overwrite=False):
     
     return imgs_wo_mask
 
+def plot_images(batch, labels, max_num_images_to_plt=16):
+    fig = plt.figure(figsize=(30,30))
+    plt.rc('font', size=12) 
+    if(len(batch) > max_num_images_to_plt):
+        num_images_to_plt = max_num_images_to_plt
+    else:
+        num_images_to_plt = len(batch)
+    
+    for i, img in enumerate(batch):
+        if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
+            img = torch.movedim(img, 0, -1)
+        plt.subplot(num_images_to_plt, num_images_to_plt, i+1)
+        if labels is not None:
+            plt.title(labels[i])
+        plt.imshow(img)
+        if i == num_images_to_plt - 1:
+            break
+    plt.show()
+
+def get_embeddings(model, loader, device):
+    embeds = []
+    targets_list = []
+    for images,_, targets in tqdm(loader):
+        images = images.to(device).float()
+
+        h = model(images)
+        h = h.cpu().detach().tolist()
+        embeds +=h
+        targets_list +=targets.tolist()
+
+    return embeds, targets_list
+
+def plot_embeddings_2D(embeddings, targets):
+    tsne = TSNE(2, verbose=1)
+    tsne_proj = tsne.fit_transform(embeddings)
+    cmap = cm.get_cmap('tab20')
+    fig, ax = plt.subplots(figsize=(5,5))
+    num_categories = len(set(targets))
+    for category in range(num_categories):
+        indices = [index for index,label in enumerate(targets) if label == category]
+        ax.scatter(tsne_proj[indices,0],tsne_proj[indices,1], c=np.array(cmap(category)).reshape(1,4), label = category ,alpha=0.5)
+    ax.legend(fontsize='large', markerscale=2)
+    plt.show()
+
+def plot_embeddings_3D(embeddings, targets):
+    tsne = TSNE(3, verbose=1)
+    tsne_proj = tsne.fit_transform(embeddings)
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(projection='3d')
+    cmap = cm.get_cmap('tab20')
+    num_categories = len(set(targets))
+    for category in range(num_categories):
+        indices = [index for index,label in enumerate(targets) if label == category]
+        print(cmap(category))
+        ax.scatter(tsne_proj[indices,0],
+                   tsne_proj[indices,1],
+                   tsne_proj[indices,2],
+                   c=np.array(cmap(category)).reshape(1,4),
+                   label=category,
+                   alpha=0.5)
+    ax.legend(fontsize='large', markerscale=2)
+    
+    # rotate the axes and update
+    for angle in range(0, 360):
+        ax.view_init(30, angle)
+        plt.draw()
+        plt.pause(.001)
+
 
 class Blackout():
     def __init__(self, path_to_shape_predictor='/srv/DeepFakeDetection/andrew_atonov_simclr_pytorch/simclr-pytorch/dfd_utils/shape_predictor_68_face_landmarks.dat') -> None:
@@ -267,7 +329,7 @@ class Blackout():
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
         rec = list(itertools.product(*[[min_x, max_x], [max_y,min_y]]))
-        # TODO do something more generic when you're not tired
+        # TODO do something more generic
         rec[2], rec[3] = rec[3], rec[2] # This orders it so rec[2] is the closer point to rec[1]
 
         return rec
