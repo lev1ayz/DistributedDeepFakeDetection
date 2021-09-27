@@ -279,15 +279,14 @@ class SimCLR(BaseSSL):
         plt.close('all')
         """
         z = self.model(x)
-        #print('z shape:', z.shape)
         loss, acc = self.criterion(z)
         return {
             'loss': loss,
             'contrast_acc': acc,
         }
 
-    def encode(self, x):
-        return self.model(x, out='h')
+    def encode(self, x, out='h'):
+        return self.model(x, out=out)
 
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)
