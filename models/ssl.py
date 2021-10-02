@@ -56,10 +56,9 @@ class BaseSSL(nn.Module):
         parser = ArgumentParser()
         cls.add_model_hparams(parser)
         hparams = parser.parse_args([], namespace=ckpt['hparams'])
-        print(vars(hparams))
         if not 'faceforensics_path' in vars(hparams):
             print('no path to faceforensics, using path from passed path...')
-            FF = path_to_ff
+            cls.FF_PATH = path_to_ff
 
         res = cls(hparams, device=device)
         res.load_state_dict(ckpt['state_dict'])
@@ -216,7 +215,6 @@ class SimCLR(BaseSSL):
 
     def __init__(self, hparams, device=None):
         super().__init__(hparams)
-        print(hparams.dist)
         self.hparams.dist = getattr(self.hparams, 'dist', 'dp')
 
         model = models.encoder.EncodeProject(hparams)
