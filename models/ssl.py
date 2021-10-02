@@ -43,7 +43,7 @@ class BaseSSL(nn.Module):
 
         
         if not 'faceforensics_path' in vars(hparams):
-            FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
+            self.FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
 
     def get_ckpt(self):
         return {
