@@ -4,9 +4,10 @@ batch_size: 256
 ckpt: ''
 color_dist_s: 1.0
 config_file: null
+faceforensics_path: /media/shirbar/My Passport/FaceForensics/split_ds/
 data: faceforensics
 dist: ddp
-dist_address: 'localhost'
+dist_address: 'localhost:9999'
 eval_freq: 330
 gpu: 0
 iters: 11000
@@ -31,3 +32,4 @@ weight_decay: 1.0e-06
 workers: 8
 world_size: 1
 deepfakes: False
+new_transforms: true

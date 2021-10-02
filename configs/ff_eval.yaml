@@ -1,20 +1,21 @@
 arch: linear
 aug: true
 augmentation: RandomResizedCrop
-batch_size: 16
+batch_size: 32
 ckpt: ''
 ckpt_iter: -1
 config_file: null
 data: faceforensics
+faceforensics_path: /media/shirbar/My Passport/FaceForensics/split_ds/
 dist: dp
 dist_address: ''
 encode_layer: h
 encoder_ckpt: ''
-eval_freq: 625
+eval_freq: 4375
 finetune: false
-iters: 25000
-log_freq: 100
-lr: 0.01
+iters: 87500
+log_freq: 438
+lr: 0.0125
 lr_schedule: linear
 model_id: -1
 name: eval_faceforensics
@@ -22,13 +23,14 @@ node_rank: 0
 opt: sgd
 precompute_emb_bs: -1
 problem: eval
-save_freq: 10000000000000000
+save_freq: 3500
 scale_lower: 0.08
-seed: -1
-test_bs: 16
+seed: 42
+test_bs: 32
 tmp: false
 warmup: 0.0
 weight_decay: 0.0
 workers: 8
 world_size: 1
 deepfakes: true
+new_transforms: false #use default transforms for linear evaluation - no masking of eyes/mouth
