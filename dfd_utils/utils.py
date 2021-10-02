@@ -18,6 +18,7 @@ from sklearn.manifold import TSNE
 import cv2
 from facenet_pytorch import MTCNN
 from skimage import io, transform
+from mpl_toolkits.mplot3d import axes3d
 
 ROOT_PATH = '~/Desktop/codes/DeepFakeDetection/'
 
@@ -111,24 +112,14 @@ def get_mask_from_img(img, mtcnn):
     box = boxes[0].tolist() # there should only be 1 face
     
     box = [int(item) for item in box] # conv to int
-    # if any(item < 0 for item in box):
-    #     return None
+ 
     box = [item if item > 0 else 0 for item in box]
-    #print('bounding box:', box)
 
     dim1, dim2, _ = img.shape
 
     bin_mask = np.zeros((dim1, dim2), dtype=np.uint8)
     bin_mask[box[1]:box[3], box[0]:box[2]] = 255
 
-    #plt.imshow(bin_mask, interpolation='nearest')
-    #plt.show()
-
-#     img = cv2.imread(img_path, cv2.COLOR_BGR2RGB)
-#     print('img shape:', img.shape,' mask shape:', bin_mask.shape)
-#     img = cv2.bitwise_and(img, img, mask = bin_mask)
-#     plt.imshow(img)
-#     plt.show()
     return bin_mask
 
 FF_DATA_PATH = '/media/shirbar/My Passport/FaceForensics/downloads'
@@ -191,8 +182,9 @@ def GenerateFaceMasks(path_to_imgs, masks_root_path=None, overwrite=False):
     return imgs_wo_mask
 
 def plot_images(batch, labels, max_num_images_to_plt=16):
-    fig = plt.figure(figsize=(30,30))
-    plt.rc('font', size=12) 
+    #fig = plt.figure(figsize=(5,5))
+    fig = plt.figure()
+    #plt.rc('font', size=4) 
     if(len(batch) > max_num_images_to_plt):
         num_images_to_plt = max_num_images_to_plt
     else:
@@ -209,54 +201,73 @@ def plot_images(batch, labels, max_num_images_to_plt=16):
             break
     plt.show()
 
-def get_embeddings(model, loader, device):
+@torch.no_grad()
+def get_embeds(model, loader, device=torch.device('cuda') ,div=True, out='h'):
+    assert out == 'h' or out == 'z', "invalid out encoding specified"
     embeds = []
-    targets_list = []
-    for images,_, targets in tqdm(loader):
-        images = images.to(device).float()
+    
+    if div:
+        div_embeds = []
+    targets = []
+    
+    for image, _, target in tqdm(loader):
+        image = image.to(device)
+        embeds.append(model.encode(image, out=out))
+        
+        if div:
+            image = image/255.
+            div_embeds.append(model.encode(image, out=out))
+            
+        targets.append(target)
+    
+    embeds = torch.vstack(embeds)
+    targets = torch.hstack(targets)
+    
+    if div:
+        div_embeds = torch.vstack(div_embeds)
+        return embeds.cpu(), div_embeds.cpu(), targets.cpu()
+    
+    return embeds.cpu(), targets.cpu()
 
-        h = model(images)
-        h = h.cpu().detach().tolist()
-        embeds +=h
-        targets_list +=targets.tolist()
-
-    return embeds, targets_list
-
-def plot_embeddings_2D(embeddings, targets):
+def plot_embeddings_2D(embeddings, targets, title):
     tsne = TSNE(2, verbose=1)
     tsne_proj = tsne.fit_transform(embeddings)
-    cmap = cm.get_cmap('tab20')
-    fig, ax = plt.subplots(figsize=(5,5))
-    num_categories = len(set(targets))
+    colors = itertools.cycle(["r", "b", "g"])
+    fig, ax = plt.subplots()
+    num_categories = max(2,len(set(targets)))
+    print('num categories:', num_categories)
     for category in range(num_categories):
         indices = [index for index,label in enumerate(targets) if label == category]
-        ax.scatter(tsne_proj[indices,0],tsne_proj[indices,1], c=np.array(cmap(category)).reshape(1,4), label = category ,alpha=0.5)
-    ax.legend(fontsize='large', markerscale=2)
+        ax.scatter(tsne_proj[indices,0],tsne_proj[indices,1], color=next(colors), label = category ,alpha=0.5)
+    ax.legend(fontsize='small', markerscale=2)
+    if title:
+        ax.set_title(title)
     plt.show()
 
-def plot_embeddings_3D(embeddings, targets):
+def plot_embeddings_3D(embeddings, targets, title=None):
     tsne = TSNE(3, verbose=1)
     tsne_proj = tsne.fit_transform(embeddings)
-    fig = plt.figure(figsize=(10,10))
+    fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    cmap = cm.get_cmap('tab20')
+
+    colors = itertools.cycle(["r", "b", "g"])
     num_categories = len(set(targets))
     for category in range(num_categories):
         indices = [index for index,label in enumerate(targets) if label == category]
-        print(cmap(category))
+
         ax.scatter(tsne_proj[indices,0],
                    tsne_proj[indices,1],
                    tsne_proj[indices,2],
-                   c=np.array(cmap(category)).reshape(1,4),
+                   color=next(colors),
                    label=category,
                    alpha=0.5)
+
     ax.legend(fontsize='large', markerscale=2)
-    
+    if title:
+        ax.set_title(title)
     # rotate the axes and update
     for angle in range(0, 360):
         ax.view_init(30, angle)
-        plt.draw()
-        plt.pause(.001)
 
 
 class Blackout():
@@ -329,7 +340,7 @@ class Blackout():
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
         rec = list(itertools.product(*[[min_x, max_x], [max_y,min_y]]))
-        # TODO do something more generic
+        # TODO something more generic
         rec[2], rec[3] = rec[3], rec[2] # This orders it so rec[2] is the closer point to rec[1]
 
         return rec
