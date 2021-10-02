@@ -6,7 +6,8 @@ We train a SimCLR encoder on the unmanipulated/Real class in the FF++ dataset.
 We then assess the resulting latent space on two downstream tasks - supervised linear evaluation 
 and a semi-supervised KNN anomaly detection algorithm inspired by
  <a href="https://arxiv.org/abs/2002.10445"> Bergmen et al 2020 </a>.
-<br />
+<br/>
+<br/>
 Our code contributions to the source repo are in the dfd_utils folder, as well as modifications in the models/ssl.py, models/resnet.py, models/encoder.py and train.py to support new dataset loading, refractor the resnet class to remove redundant fc layer, load a torchvision pre-trained resnet and add additional training parameters related to the Deepfake detection task and dataset.
 ## Enviroment Setup
 
