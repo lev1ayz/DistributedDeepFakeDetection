@@ -47,6 +47,8 @@ def add_learner_params(parser):
     parser.add_argument('--deepfakes', default=False, type=bool, help='load deepfakes')
     parser.add_argument('--pretrained', default=False, type=bool, help='load resnet with torchvision pretrained weights')
     parser.add_argument('--new_transforms', default=True, type=bool, help='use special FF transforms')
+    # dataset params
+    parser.add_argument('--faceforensics_path', default='/media/shirbar/My Passport/FaceForensics/split_ds/', type=str, help='pass root path to FaceForensics dataset')
 
     # parallelizm params:
     parser.add_argument('--dist', default='dp', type=str,
@@ -174,35 +176,6 @@ def main_worker(gpu, ngpus, args):
         for batch in tqdm(train_loader):
             cur_iter += 1
             batch = [item.to(device) for item in batch]
-            #print('train.py batch len:', len(batch))
-            # Plot images for testing
-            """
-            print('plotting a test pic in train.py')
-            x, y, labels = batch
-            print('labels:', labels)
-            num_images = len(x) * 2
-            assert len(x) == len(y), "images not same size?"
-            print('num images:', num_images)
-            fig, axs = plt.subplots(nrows=4, ncols=int(num_images/4))
-            for i in range(0,num_images,2):
-                img1 = x[int(i/2)]
-                img1 = img1.cpu()
-                img2 = y[int(i/2)]
-                img2 = img2.cpu()
-                #print('img shape:', img.shape)
-                if(img1.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
-                    img1 = torch.movedim(img1, 0, -1)
-                if(img2.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
-                    img2 = torch.movedim(img2, 0, -1)
-                row = int(i/(num_images/4))
-                col = int(i%(num_images/4))
-                print('row:', row, ' col:', col)
-                axs[row,col].imshow(img1)
-                #axs[row, col+1].imshow(img2)
-                #axs[row,col].title.set_text(labels[0][i])
-            plt.show()
-            plt.close('all')
-            """
             # For FaceForensics, take both augmetations and merge them into 1 list
             if args.data == 'faceforensics':
                 if args.problem == 'eval':

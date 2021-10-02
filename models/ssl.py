@@ -33,13 +33,17 @@ class BaseSSL(nn.Module):
     """
     DATA_ROOT = os.environ.get('DATA_ROOT', os.path.dirname(os.path.abspath(__file__)) + '/data')
     IMAGENET_PATH = os.environ.get('IMAGENET_PATH', '/home/aashukha/imagenet/raw-data/')
-    FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
+    #FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
 
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
         if hparams.data == 'imagenet':
             print(f"IMAGENET_PATH = {self.IMAGENET_PATH}")
+
+        
+        if not 'faceforensics_path' in vars(hparams):
+            FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
 
     def get_ckpt(self):
         return {
@@ -48,11 +52,15 @@ class BaseSSL(nn.Module):
         }
 
     @classmethod
-    def load(cls, ckpt, device=None):
+    def load(cls, ckpt, device=None, path_to_ff = '/media/shirbar/My Passport/FaceForensics/split_ds/'):
         parser = ArgumentParser()
         cls.add_model_hparams(parser)
         hparams = parser.parse_args([], namespace=ckpt['hparams'])
-        print('device is:',device)
+        print(vars(hparams))
+        if not 'faceforensics_path' in vars(hparams):
+            print('no path to faceforensics, using path from passed path...')
+            FF = path_to_ff
+
         res = cls(hparams, device=device)
         res.load_state_dict(ckpt['state_dict'])
         return res
@@ -121,14 +129,14 @@ class BaseSSL(nn.Module):
                                                              generator=torch.Generator().manual_seed(self.hparams.seed))
             train_subset = Subset(train_dataset, list(range(0, 28000)))
             test_subset = Subset(test_dataset, list(range(0, 4000)))
-            indice_file_path = os.path.join(self.hparams.root,'subset_indices.txt')
-            if not os.path.exists(indice_file_path):
-                with open(indice_file_path,'w') as f:
-                    f.write('train indices:')
-                    f.write(' '.join([str(c) for c in train_subset.indices]))
-                    f.write('test indices:')
-                    f.write(' '.join([str(c) for c in test_subset.indices]))
-                    f.close()
+            # indice_file_path = os.path.join(self.hparams.root,'subset_indices.txt')
+            # if not os.path.exists(indice_file_path):
+            #     with open(indice_file_path,'w') as f:
+            #         f.write('train indices:')
+            #         f.write(' '.join([str(c) for c in train_subset.indices]))
+            #         f.write('test indices:')
+            #         f.write(' '.join([str(c) for c in test_subset.indices]))
+            #         f.close()
             self.trainset = train_subset
             self.testset = test_subset
             """
@@ -255,29 +263,7 @@ class SimCLR(BaseSSL):
                 linear_normal_init(m.weight)
 
     def step(self, batch):
-        #print('ssl.py batch len:', len(batch))
-        #print('ssl.py batch0 shape:', batch[0].shape)
-        #print('ssl.py batch1 shape:', batch[1].shape)
         x, _ = batch
-        # if type(x) is not torch.Tensor.type:
-        #     x = torch.FloatTensor(x)
-        #print('x type:', type(x))
-        # visualize the pictures
-        """
-        num_images = len(x)
-        fig, axs = plt.subplots(nrows=4, ncols=int(num_images/4))
-        for i in range(num_images):
-            img = x[i]
-            img = img.cpu()
-            #print('img shape:', img.shape)
-            if(img.shape[2] != 3): # if the channels are the 1st dim (0th dim), move them to last dim
-                img = torch.movedim(img, 0, -1)
-            row = int(i/4)
-            col = i%(int(num_images/4))
-            axs[row,col].imshow(img)
-        plt.show()
-        plt.close('all')
-        """
         z = self.model(x)
         loss, acc = self.criterion(z)
         return {
@@ -362,13 +348,6 @@ class SimCLR(BaseSSL):
                 datautils.Clip(),
             ])
             test_transform = train_transform
-        # TODO add FaceForensics (looks like it should be the same as imagenet or none since the dataclass provides the transforms)
-        """
-        elif self.hparams.data == 'faceforensics':
-            print('transforms are None')
-            train_transform = None
-            test_transform = None
-        """
         return train_transform, test_transform
 
     def get_ckpt(self):
@@ -443,8 +422,8 @@ class SSLEval(BaseSSL):
         if hparams.dist == 'ddp':
             self.model = DDP(model, [hparams.gpu])
 
-    def encode(self, x):
-        return self.encoder.model(x.float(), out='h')
+    def encode(self, x, out='h'):
+        return self.encoder.model(x.float(), out=out)
 
     def step(self, batch):
         if self.hparams.problem == 'eval' and (self.hparams.data == 'imagenet' or self.hparams.data == 'faceforensics'):
@@ -599,11 +578,7 @@ class SSLEval(BaseSSL):
                 transforms.ToTensor(),
                 lambda x: (255 * x).byte(),
             ])
-        # TODO add FaceForensics? since it takes care of the transform itself
-        # elif self.hparams.data == 'faceforensics':
-        #     train_transform = None
-        #     test_transform = None
-
+            
         return train_transform if self.hparams.aug else test_transform, test_transform
 
     def train(self, mode=True):
