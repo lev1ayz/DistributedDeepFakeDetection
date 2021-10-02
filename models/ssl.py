@@ -44,6 +44,8 @@ class BaseSSL(nn.Module):
         
         if not 'faceforensics_path' in vars(hparams):
             self.FF_PATH = '/media/shirbar/My Passport/FaceForensics/split_ds/'
+        else:
+            self.FF_PATH = hparams.faceforensics_path
 
     def get_ckpt(self):
         return {
@@ -59,6 +61,8 @@ class BaseSSL(nn.Module):
         if not 'faceforensics_path' in vars(hparams):
             print('no path to faceforensics, using path from passed path...')
             cls.FF_PATH = path_to_ff
+        else:
+            cls.FF_PATH = hparams.faceforensics_path
 
         res = cls(hparams, device=device)
         res.load_state_dict(ckpt['state_dict'])
