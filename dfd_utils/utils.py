@@ -229,6 +229,19 @@ def get_embeds(model, loader, device=torch.device('cuda') ,div=True, out='h'):
     
     return embeds.cpu(), targets.cpu()
 
+def get_embeddings(model, loader, device):
+    embeds = []
+    targets_list = []
+    for images,_, targets in tqdm(loader):
+        images = images.to(device).float()
+
+        h = model(images)
+        h = h.cpu().detach().tolist()
+        embeds +=h
+        targets_list +=targets.tolist()
+
+    return embeds, targets_list
+
 def plot_embeddings_2D(embeddings, targets, title):
     tsne = TSNE(2, verbose=1)
     tsne_proj = tsne.fit_transform(embeddings)
