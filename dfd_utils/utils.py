@@ -271,9 +271,11 @@ def plot_embeddings_3D(embeddings, targets, title=None):
 
 
 class Blackout():
-    def __init__(self, path_to_shape_predictor='/srv/DeepFakeDetection/andrew_atonov_simclr_pytorch/simclr-pytorch/dfd_utils/shape_predictor_68_face_landmarks.dat') -> None:
+    def __init__(self, path_to_shape_predictor='shape_predictor_68_face_landmarks.dat') -> None:
         self.detector = dlib.get_frontal_face_detector()
-        self.predictor = dlib.shape_predictor(path_to_shape_predictor)
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, path_to_shape_predictor)
+        self.predictor = dlib.shape_predictor(filename)
 
         self.mouth_pts = range(48,68)
         self.r_eye_pts = range(36,42)
