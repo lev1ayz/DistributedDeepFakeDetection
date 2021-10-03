@@ -131,8 +131,8 @@ class BaseSSL(nn.Module):
                                                              generator=torch.Generator().manual_seed(self.hparams.seed))
             test_dataset, _ = torch.utils.data.random_split(ff_ds_test, [test_size, ts_size],
                                                              generator=torch.Generator().manual_seed(self.hparams.seed))
-            train_subset = Subset(train_dataset, list(range(0, max(28000,len(train_dataset))))
-            test_subset = Subset(test_dataset, list(range(0, max(4000, len(test_dataset))))
+            train_subset = Subset(train_dataset, list(range(0, max(28000,len(train_dataset)))))
+            test_subset = Subset(test_dataset, list(range(0, max(4000, len(test_dataset)))))
             # indice_file_path = os.path.join(self.hparams.root,'subset_indices.txt')
             # if not os.path.exists(indice_file_path):
             #     with open(indice_file_path,'w') as f:
